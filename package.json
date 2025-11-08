@@ -1,0 +1,34 @@
+{
+  "name": "quickwheels-server",
+  "version": "1.0.0",
+  "description": "RESTful API server for QuickWheels — a vehicle renting and booking system powered by Node.js, Express, and MongoDB.",
+  "homepage": "https://github.com/QuickWheels/quickwheels-server#readme",
+  "bugs": {
+    "url": "https://github.com/QuickWheels/quickwheels-server/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/QuickWheels/quickwheels-server.git"
+  },
+  "license": "ISC",
+  "author": "",
+  "type": "module",
+  "main": "server.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "dependencies": {
+    "@supabase/supabase-js": "*",
+    "morgan": "*",
+    "helmet": "*",
+    "compression": "*",
+    "mongoose-sequence": "*",
+    "nodemailer": "*",
+    "express-async-errors": "*",
+    "bcrypt": "*",
+    "dotenv": "*",
+    "express": "*",
+    "jsonwebtoken": "*",
+    "mongoose": "*"
+  }
+}
