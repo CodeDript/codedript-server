@@ -205,7 +205,13 @@ const handleMulterError = (err, req, res, next) => {
   next(err);
 };
 
+/**
+ * Default upload instance for convenience
+ */
+const upload = createUploadMiddleware();
+
 module.exports = {
+  upload,
   uploadSingle,
   uploadMultiple,
   uploadFields,
