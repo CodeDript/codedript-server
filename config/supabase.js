@@ -17,7 +17,9 @@ class SupabaseConfig {
    */
   initialize() {
     const supabaseUrl = process.env.SUPABASE_URL;
-    const supabaseKey = process.env.SUPABASE_ANON_KEY;
+    // Prefer service role key for server-side operations if provided.
+    // The service role key has elevated privileges and MUST NOT be exposed to clients.
+    const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_ANON_KEY;
 
     if (!supabaseUrl || !supabaseKey) {
       // Silent: credentials will be checked by environment status checker
