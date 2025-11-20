@@ -247,7 +247,7 @@ const retryWithBackoff = async (fn, maxRetries = 3, delayMs = 1000) => {
       if (i === maxRetries - 1) throw error;
       
       const backoffDelay = delayMs * Math.pow(2, i);
-      console.log(`Retry attempt ${i + 1} after ${backoffDelay}ms`);
+      // Retry with exponential backoff
       await delay(backoffDelay);
     }
   }

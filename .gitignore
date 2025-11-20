@@ -1,4 +1,4 @@
-# QuickWheels - server .gitignore
+# CodeDript Server - .gitignore
 # =============================
 # Professional, comprehensive ignores for Node/Express server development.
 
@@ -9,6 +9,7 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 .pnp.*
+package-lock.json
 
 # Logs
 logs/
@@ -38,14 +39,19 @@ coverage/
 .jest/
 .eslintcache
 
+# Test files (keep in dev only)
+test-*.js
+
 # Environment / secret files - never commit secrets
 .env
+.env.*
 .env.*.local
 .env.local
 .env.development.local
 .env.test.local
 .env.production.local
 .env.test
+!.env.example
 
 # OS generated files
 .DS_Store
@@ -100,7 +106,6 @@ thumbs.db
 .turbo/
 
 # Optional lockfiles (uncomment if you want to ignore lockfiles)
-# package-lock.json
 # yarn.lock
 # pnpm-lock.yaml
 

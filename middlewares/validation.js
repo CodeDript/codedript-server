@@ -1,5 +1,6 @@
 const { body, param, query, validationResult } = require('express-validator');
-const { AppError } = require('../utils/responseHandler');
+const validator = require('validator');
+const { AppError } = require('./errorHandler');
 
 /**
  * Validation Middleware

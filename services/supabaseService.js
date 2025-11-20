@@ -1,6 +1,6 @@
 const supabaseConfig = require('../config/supabase');
 const { generateFileName } = require('../middlewares/upload');
-const { AppError } = require('../utils/responseHandler');
+const { AppError } = require('../middlewares/errorHandler');
 
 /**
  * Supabase Service

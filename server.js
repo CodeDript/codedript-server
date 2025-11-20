@@ -10,6 +10,9 @@ const rateLimit = require('express-rate-limit');
 const environmentConfig = require('./config/environment');
 const databaseConfig = require('./config/database');
 
+// Utilities
+const { sendSuccessResponse } = require('./utils/responseHandler');
+
 // Middlewares
 const { errorHandler, notFound, handleUnhandledRejection, handleUncaughtException } = require('./middlewares/errorHandler');
 const { sanitizeInput } = require('./middlewares/validation');
@@ -99,37 +102,42 @@ if (config.isDevelopment) {
 app.get('/health', async (req, res) => {
   const dbStatus = await databaseConfig.healthCheck();
   
-  res.status(200).json({
-    success: true,
-    message: 'Server is healthy',
-    environment: config.env,
-    timestamp: new Date().toISOString(),
-    services: {
-      api: 'operational',
-      database: dbStatus.status
+  sendSuccessResponse(
+    res,
+    200,
+    'Server is healthy',
+    {
+      environment: config.env,
+      services: {
+        api: 'operational',
+        database: dbStatus.status
+      }
     }
-  });
+  );
 });
 
 /**
  * API Information Endpoint
  */
 app.get('/api', (req, res) => {
-  res.status(200).json({
-    success: true,
-    message: 'CodeDript API',
-    version: config.server.apiVersion,
-    documentation: `${config.server.baseUrl}/api/docs`,
-    endpoints: {
-      health: '/health',
-      auth: '/api/auth',
-      users: '/api/users',
-      gigs: '/api/gigs',
-      agreements: '/api/agreements',
-      milestones: '/api/milestones',
-      transactions: '/api/transactions'
+  sendSuccessResponse(
+    res,
+    200,
+    'CodeDript API',
+    {
+      version: config.server.apiVersion,
+      documentation: `${config.server.baseUrl}/api/docs`,
+      endpoints: {
+        health: '/health',
+        auth: '/api/auth',
+        users: '/api/users',
+        gigs: '/api/gigs',
+        agreements: '/api/agreements',
+        milestones: '/api/milestones',
+        transactions: '/api/transactions'
+      }
     }
-  });
+  );
 });
 
 /**

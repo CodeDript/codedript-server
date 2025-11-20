@@ -20,8 +20,7 @@ class SupabaseConfig {
     const supabaseKey = process.env.SUPABASE_ANON_KEY;
 
     if (!supabaseUrl || !supabaseKey) {
-      console.error('❌ Supabase credentials not found in environment variables');
-      console.error('Please set SUPABASE_URL and SUPABASE_ANON_KEY');
+      // Silent: credentials will be checked by environment status checker
       return;
     }
 
@@ -31,9 +30,9 @@ class SupabaseConfig {
           persistSession: false
         }
       });
-      console.log('✅ Supabase client initialized successfully');
+      // Silent: initialization success logged by environment checker
     } catch (error) {
-      console.error('❌ Error initializing Supabase client:', error.message);
+      // Silent: errors will be surfaced when operations are attempted
       throw error;
     }
   }
@@ -61,12 +60,11 @@ class SupabaseConfig {
           throw error;
         }
 
-        console.log(`✅ Bucket '${this.bucketName}' created successfully`);
+        // Bucket created (silent)
       }
 
       return true;
     } catch (error) {
-      console.error('❌ Error ensuring bucket exists:', error.message);
       throw error;
     }
   }
@@ -119,7 +117,6 @@ class SupabaseConfig {
         uploadedAt: new Date()
       };
     } catch (error) {
-      console.error('❌ Error uploading file to Supabase:', error.message);
       throw error;
     }
   }
@@ -148,7 +145,6 @@ class SupabaseConfig {
         blob: data
       };
     } catch (error) {
-      console.error('❌ Error downloading file from Supabase:', error.message);
       throw error;
     }
   }
@@ -178,7 +174,6 @@ class SupabaseConfig {
         expiresAt: new Date(Date.now() + expiresIn * 1000)
       };
     } catch (error) {
-      console.error('❌ Error generating signed URL:', error.message);
       throw error;
     }
   }
@@ -207,7 +202,6 @@ class SupabaseConfig {
         deletedFiles: data
       };
     } catch (error) {
-      console.error('❌ Error deleting file from Supabase:', error.message);
       throw error;
     }
   }
@@ -240,7 +234,6 @@ class SupabaseConfig {
         count: data.length
       };
     } catch (error) {
-      console.error('❌ Error listing files from Supabase:', error.message);
       throw error;
     }
   }
@@ -270,7 +263,6 @@ class SupabaseConfig {
         metadata: data[0] || null
       };
     } catch (error) {
-      console.error('❌ Error getting file metadata:', error.message);
       throw error;
     }
   }

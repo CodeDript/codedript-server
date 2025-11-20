@@ -1,6 +1,6 @@
 const multer = require('multer');
 const path = require('path');
-const { AppError } = require('../utils/responseHandler');
+const { AppError } = require('./errorHandler');
 const environmentConfig = require('../config/environment');
 
 /**

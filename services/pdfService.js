@@ -1,7 +1,7 @@
 const PDFGenerator = require('../utils/pdfGenerator');
 const supabaseService = require('./supabaseService');
 const Agreement = require('../models/Agreement');
-const { AppError } = require('../utils/responseHandler');
+const { AppError } = require('../middlewares/errorHandler');
 
 /**
  * PDF Service

@@ -4,12 +4,13 @@
  * Note: This is a placeholder implementation. You can integrate with SendGrid, Nodemailer, or other email services
  */
 
-import { get } from '../config/environment';
+const environmentConfig = require('../config/environment');
 
 class EmailService {
   constructor() {
-    this.config = get('email');
-    this.isEnabled = get('features').enableEmail;
+    const config = environmentConfig.getConfig();
+    this.config = config.email;
+    this.isEnabled = config.features.enableEmail;
   }
 
   /**
