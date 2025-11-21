@@ -138,6 +138,10 @@ function getConfig() {
 		upload: {
 			maxFileSize: parseInt(process.env.MAX_FILE_SIZE, 10) || 50 * 1024 * 1024,
 			allowedMimeTypes: (process.env.ALLOWED_MIME_TYPES || 'application/pdf,image/jpeg,image/png,image/gif').split(',').map(s => s.trim())
+		},
+		pinata: {
+			jwt: process.env.PINATA_JWT,
+			gateway: process.env.PINATA_GATEWAY
 		}
 	};
 }
