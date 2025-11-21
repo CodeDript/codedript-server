@@ -17,13 +17,13 @@ const { sendSuccessResponse } = require('./utils/responseHandler');
 const { errorHandler, notFound, handleUnhandledRejection, handleUncaughtException } = require('./middlewares/errorHandler');
 const { sanitizeInput } = require('./middlewares/validation');
 
-// Routes (will be uncommented as you create them)
-// const authRoutes = require('./routes/authRoutes');
-// const userRoutes = require('./routes/userRoutes');
-// const gigRoutes = require('./routes/gigRoutes');
-// const agreementRoutes = require('./routes/agreementRoutes');
-// const milestoneRoutes = require('./routes/milestoneRoutes');
-// const transactionRoutes = require('./routes/transactionRoutes');
+// Routes
+const authRoutes = require('./routes/auth.routes');
+const userRoutes = require('./routes/user.routes');
+const gigRoutes = require('./routes/gig.routes');
+const agreementRoutes = require('./routes/agreement.routes');
+const milestoneRoutes = require('./routes/milestone.routes');
+const transactionRoutes = require('./routes/transaction.routes');
 
 /**
  * Initialize Express Application
@@ -142,16 +142,15 @@ app.get('/api', (req, res) => {
 
 /**
  * API Routes
- * Uncomment as you create route files
  */
 const API_PREFIX = `/api/${config.server.apiVersion}`;
 
-// app.use(`${API_PREFIX}/auth`, authRoutes);
-// app.use(`${API_PREFIX}/users`, userRoutes);
-// app.use(`${API_PREFIX}/gigs`, gigRoutes);
-// app.use(`${API_PREFIX}/agreements`, agreementRoutes);
-// app.use(`${API_PREFIX}/milestones`, milestoneRoutes);
-// app.use(`${API_PREFIX}/transactions`, transactionRoutes);
+app.use(`${API_PREFIX}/auth`, authRoutes);
+app.use(`${API_PREFIX}/users`, userRoutes);
+app.use(`${API_PREFIX}/gigs`, gigRoutes);
+app.use(`${API_PREFIX}/agreements`, agreementRoutes);
+app.use(`${API_PREFIX}/milestones`, milestoneRoutes);
+app.use(`${API_PREFIX}/transactions`, transactionRoutes);
 
 /**
  * 404 Handler - Route Not Found
