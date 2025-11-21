@@ -220,6 +220,7 @@ const verifyRefreshToken = (req, res, next) => {
 
 module.exports = {
   authenticate,
+  protect: authenticate, // Alias for consistency
   optionalAuth,
   verifyWallet,
   restrictTo,

@@ -320,6 +320,29 @@ const sanitizeInput = (req, res, next) => {
   next();
 };
 
+/**
+ * Generic validation request wrapper
+ * @param {string} validationType - Type of validation to apply
+ */
+const validateRequest = (validationType) => {
+  const [resource, action] = validationType.split('.');
+  
+  const validationMap = {
+    user: userValidation,
+    gig: gigValidation,
+    agreement: agreementValidation,
+    milestone: milestoneValidation,
+    common: commonValidation
+  };
+
+  if (validationMap[resource] && validationMap[resource][action]) {
+    return validationMap[resource][action];
+  }
+
+  // Return a no-op middleware if validation not found
+  return [(req, res, next) => next()];
+};
+
 module.exports = {
   handleValidationErrors,
   userValidation,
@@ -327,5 +350,6 @@ module.exports = {
   agreementValidation,
   milestoneValidation,
   commonValidation,
+  validateRequest,
   sanitizeInput
 };
