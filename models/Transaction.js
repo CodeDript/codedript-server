@@ -12,11 +12,25 @@ const transactionSchema = new mongoose.Schema({
     required: [true, 'Transaction type is required'],
     enum: {
       values: [
-        'escrow_deposit',
-        'milestone_payment',
-        'refund',
-        'platform_fee',
-        'withdrawal',
+        'contract_creation',      // Initial contract recorded on blockchain
+        'escrow_deposit',         // Client deposits funds to escrow
+        'contract_signature',     // Signature transaction (client or developer)
+        'milestone_completion',   // Developer marks milestone complete
+        'milestone_approval',     // Client approves milestone
+        'milestone_payment',      // Payment released for milestone
+        'change_request',         // Change request initiated
+        'change_request_payment', // Additional payment for change request
+        'change_request_approval',// Change request approved
+        'final_delivery',         // Final project delivery
+        'final_approval',         // Client final approval
+        'final_payment',          // Final payment released
+        'ownership_transfer',     // Ownership transferred to client
+        'contract_update',        // Contract modification
+        'refund',                 // Refund transaction
+        'platform_fee',           // Platform fee deduction
+        'withdrawal',             // Withdrawal transaction
+        'dispute_raised',         // Dispute transaction
+        'contract_cancellation',  // Contract cancelled
         'other'
       ],
       message: '{VALUE} is not a valid transaction type'
@@ -107,7 +121,7 @@ const transactionSchema = new mongoose.Schema({
     },
     network: {
       type: String,
-      enum: ['mainnet', 'sepolia', 'goerli', 'polygon', 'local']
+      enum: ['mainnet', 'sepolia', 'goerli', 'polygon', 'mumbai', 'local']
     },
     transactionHash: {
       type: String,
@@ -131,6 +145,10 @@ const transactionSchema = new mongoose.Schema({
     confirmations: {
       type: Number,
       default: 0
+    },
+    eventData: {
+      eventName: String,
+      args: mongoose.Schema.Types.Mixed
     }
   },
   metadata: {

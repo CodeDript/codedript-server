@@ -69,14 +69,15 @@ const milestoneSchema = new mongoose.Schema({
     type: String,
     enum: {
       values: [
-        'pending',
-        'in_progress',
-        'submitted',
-        'in_review',
-        'revision_requested',
-        'completed',
-        'approved',
-        'rejected'
+        'pending',              // Not started
+        'in_progress',          // Developer working on it
+        'submitted',            // Developer submitted demo for review
+        'in_review',            // Client reviewing submission
+        'revision_requested',   // Client requested changes
+        'completed',            // Developer marked as complete
+        'approved',             // Client approved
+        'paid',                 // Payment released to developer
+        'rejected'              // Client rejected
       ],
       message: '{VALUE} is not a valid status'
     },
@@ -96,6 +97,17 @@ const milestoneSchema = new mongoose.Schema({
       trim: true,
       maxlength: [1000, 'Notes cannot exceed 1000 characters']
     },
+    demoFiles: [{
+      name: String,
+      url: String,
+      ipfsHash: String,
+      supabaseId: String,
+      description: String,
+      uploadedAt: {
+        type: Date,
+        default: Date.now
+      }
+    }],
     files: [{
       name: String,
       url: String,
@@ -161,9 +173,23 @@ const milestoneSchema = new mongoose.Schema({
       type: Boolean,
       default: false
     },
-    completionTxHash: String,
-    approvalTxHash: String,
-    paymentTxHash: String
+    completionTxHash: String,    // Transaction when developer marks complete
+    approvalTxHash: String,       // Transaction when client approves
+    paymentTxHash: String,        // Transaction when payment released
+    network: {
+      type: String,
+      enum: ['mainnet', 'sepolia', 'goerli', 'polygon', 'mumbai', 'local'],
+      default: 'sepolia'
+    }
+  },
+  payment: {
+    released: {
+      type: Boolean,
+      default: false
+    },
+    releasedAt: Date,
+    releasedAmount: Number,
+    releaseTxHash: String
   },
   metadata: {
     priority: {

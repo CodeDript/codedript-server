@@ -119,6 +119,9 @@ const agreementSchema = new mongoose.Schema({
       url: {
         type: String
       },
+      ipfsHash: {
+        type: String
+      },
       supabaseId: {
         type: String
       },
@@ -126,6 +129,21 @@ const agreementSchema = new mongoose.Schema({
         type: Date
       }
     },
+    projectFiles: [{
+      name: String,
+      url: String,
+      ipfsHash: String,
+      supabaseId: String,
+      description: String,
+      uploadedBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User'
+      },
+      uploadedAt: {
+        type: Date,
+        default: Date.now
+      }
+    }],
     additionalFiles: [{
       name: String,
       url: String,
@@ -155,6 +173,10 @@ const agreementSchema = new mongoose.Schema({
     },
     previousValue: mongoose.Schema.Types.Mixed,
     newValue: mongoose.Schema.Types.Mixed,
+    additionalCost: {
+      type: Number,
+      default: 0
+    },
     status: {
       type: String,
       enum: ['pending', 'approved', 'rejected'],
@@ -164,6 +186,7 @@ const agreementSchema = new mongoose.Schema({
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User'
     },
+    approvalTxHash: String,
     requestedAt: {
       type: Date,
       default: Date.now
@@ -176,14 +199,17 @@ const agreementSchema = new mongoose.Schema({
     type: String,
     enum: {
       values: [
-        'draft',
-        'pending_acceptance',
-        'active',
-        'in_progress',
-        'awaiting_approval',
-        'completed',
-        'cancelled',
-        'disputed'
+        'draft',                  // Client created, uploading project files
+        'pending_developer',      // Waiting for developer to review & add milestones
+        'pending_client',         // Waiting for client to approve milestones
+        'pending_signatures',     // Both agreed, waiting for wallet signatures
+        'escrow_deposit',         // Client signing & depositing funds to escrow
+        'active',                 // Both signed, funds in escrow, work in progress
+        'in_progress',            // Project work ongoing
+        'awaiting_final_approval',// All milestones done, awaiting final client approval
+        'completed',              // Final delivery approved, ownership transferred
+        'cancelled',              // Contract cancelled
+        'disputed'                // Dispute raised
       ],
       message: '{VALUE} is not a valid status'
     },
@@ -215,7 +241,9 @@ const agreementSchema = new mongoose.Schema({
         default: false
       },
       signedAt: Date,
-      walletAddress: String
+      walletAddress: String,
+      transactionHash: String,
+      message: String
     },
     developer: {
       signed: {
@@ -223,7 +251,9 @@ const agreementSchema = new mongoose.Schema({
         default: false
       },
       signedAt: Date,
-      walletAddress: String
+      walletAddress: String,
+      transactionHash: String,
+      message: String
     }
   },
   blockchain: {
@@ -234,8 +264,46 @@ const agreementSchema = new mongoose.Schema({
     transactionHash: String,
     blockNumber: Number,
     ipfsHash: String,
+    metadataHash: String,
     contractAddress: String,
-    recordedAt: Date
+    recordedAt: Date,
+    network: {
+      type: String,
+      enum: ['mainnet', 'sepolia', 'goerli', 'polygon', 'mumbai', 'local'],
+      default: 'sepolia'
+    }
+  },
+  escrow: {
+    totalAmount: {
+      type: Number,
+      default: 0
+    },
+    heldAmount: {
+      type: Number,
+      default: 0
+    },
+    releasedAmount: {
+      type: Number,
+      default: 0
+    },
+    status: {
+      type: String,
+      enum: ['pending', 'locked', 'releasing', 'completed'],
+      default: 'pending'
+    },
+    depositTxHash: String,
+    smartContractAddress: String
+  },
+  finalDelivery: {
+    ipfsHash: String,
+    deliveredAt: Date,
+    clientApproved: {
+      type: Boolean,
+      default: false
+    },
+    approvedAt: Date,
+    ownershipTransferTxHash: String,
+    finalPaymentTxHash: String
   },
   metadata: {
     lastActivityAt: {
