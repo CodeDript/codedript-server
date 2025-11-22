@@ -9,7 +9,7 @@ const User = require('../models/User');
  * @access Public
  */
 exports.register = catchAsync(async (req, res, next) => {
-  const { email, walletAddress, role, profile } = req.body;
+  const { email, walletAddress, password, role, profile } = req.body;
 
   // Check if user already exists
   const existingUser = await User.findOne({
@@ -25,49 +25,70 @@ exports.register = catchAsync(async (req, res, next) => {
     }
   }
 
-  // Create user
+  // Create user (password will be hashed by pre-save middleware)
   const user = await User.create({
     email,
     walletAddress: walletAddress.toUpperCase(),
+    password, // Optional - for email login
     role: role || 'both',
     profile: profile || {}
   });
 
-  // Generate tokens
-  const accessToken = generateToken(user._id);
-  const refreshToken = generateRefreshToken(user._id);
+  // Generate tokens (include walletAddress in the token payload)
+  const accessToken = generateToken({ id: user._id, walletAddress: user.walletAddress });
+  const refreshToken = generateRefreshToken({ id: user._id, walletAddress: user.walletAddress });
 
-  // Update last login
+  // Update last login (will set firstLogin)
   await user.updateLastLogin();
 
   // Remove sensitive data
   const userResponse = user.toObject();
   delete userResponse.__v;
+  delete userResponse.password;
 
   sendCreatedResponse(res, 'Registration successful', {
     user: userResponse,
-    accessToken,
+    token: accessToken,
     refreshToken
   });
 });
 
 /**
- * Login with wallet address
+ * Login with wallet address or email/password
  * @route POST /api/v1/auth/login
  * @access Public
  */
 exports.login = catchAsync(async (req, res, next) => {
-  const { walletAddress, signature } = req.body;
+  const { walletAddress, email, password } = req.body;
 
-  if (!walletAddress) {
-    return next(new AppError('Wallet address is required', 400));
-  }
+  let user;
 
-  // Find user by wallet address
-  const user = await User.findByWallet(walletAddress);
+  // Login with wallet address
+  if (walletAddress) {
+    // Find user by wallet address
+    user = await User.findByWallet(walletAddress);
 
-  if (!user) {
-    return next(new AppError('User not found. Please register first.', 404));
+    if (!user) {
+      return next(new AppError('User not found. Please register first.', 404));
+    }
+  } 
+  // Login with email and password
+  else if (email && password) {
+    // Find user by email and include password field
+    user = await User.findOne({ email }).select('+password');
+
+    if (!user) {
+      return next(new AppError('Invalid email or password', 401));
+    }
+
+    // Check password
+    const isPasswordValid = await user.comparePassword(password);
+    if (!isPasswordValid) {
+      return next(new AppError('Invalid email or password', 401));
+    }
+  } 
+  else {
+    return next(new AppError('Please provide wallet address or email and password', 400));
   }
 
   // Check if user is active
@@ -75,24 +96,21 @@ exports.login = catchAsync(async (req, res, next) => {
     return next(new AppError('Your account has been deactivated. Please contact support.', 403));
   }
 
-  // TODO: Verify wallet signature when implementing frontend
-  // For now, we'll skip signature verification in development
-  // In production, verify that the signature matches the wallet address
+  // Generate tokens (include walletAddress in the token payload)
+  const accessToken = generateToken({ id: user._id, walletAddress: user.walletAddress });
+  const refreshToken = generateRefreshToken({ id: user._id, walletAddress: user.walletAddress });
 
-  // Generate tokens
-  const accessToken = generateToken(user._id);
-  const refreshToken = generateRefreshToken(user._id);
-
-  // Update last login
+  // Update last login (tracks first login automatically)
   await user.updateLastLogin();
 
   // Remove sensitive data
   const userResponse = user.toObject();
   delete userResponse.__v;
+  delete userResponse.password;
 
   sendSuccessResponse(res, 200, 'Login successful', {
     user: userResponse,
-    accessToken,
+    token: accessToken, // Changed from accessToken to token for frontend compatibility
     refreshToken
   });
 });
@@ -132,9 +150,9 @@ exports.refreshToken = catchAsync(async (req, res, next) => {
       return next(new AppError('Your account has been deactivated', 403));
     }
 
-    // Generate new tokens
-    const newAccessToken = generateToken(user._id);
-    const newRefreshToken = generateRefreshToken(user._id);
+    // Generate new tokens (preserve walletAddress in payload)
+    const newAccessToken = generateToken({ id: user._id, walletAddress: user.walletAddress });
+    const newRefreshToken = generateRefreshToken({ id: user._id, walletAddress: user.walletAddress });
 
     sendSuccessResponse(res, 200, 'Token refreshed successfully', {
       accessToken: newAccessToken,
