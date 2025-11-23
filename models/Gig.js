@@ -46,6 +46,45 @@ const gigSchema = new mongoose.Schema({
     type: String,
     trim: true
   },
+  gigId: {
+    type: Number,
+    unique: true,
+    required: true
+  },
+  packages: [{
+    name: {
+      type: String,
+      required: true,
+      enum: ['Basic', 'Standard', 'Premium']
+    },
+    description: [{
+      type: String,
+      required: true
+    }],
+    price: {
+      type: Number,
+      required: true,
+      min: [0, 'Price cannot be negative']
+    },
+    currency: {
+      type: String,
+      default: 'ETH',
+      enum: ['ETH', 'USD']
+    },
+    deliveryTime: {
+      type: Number,
+      required: true,
+      min: [1, 'Delivery time must be at least 1 day']
+    },
+    revisions: {
+      type: Number,
+      required: true,
+      min: [0, 'Revisions cannot be negative']
+    },
+    features: [{
+      type: String
+    }]
+  }],
   pricing: {
     type: {
       type: String,

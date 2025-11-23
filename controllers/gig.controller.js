@@ -40,14 +40,28 @@ exports.getAllGigs = catchAsync(async (req, res, next) => {
   const limit = parseInt(req.query.limit) || 10;
   const skip = (page - 1) * limit;
 
-  const { category, minPrice, maxPrice, deliveryTime, status, sortBy, sortOrder } = req.query;
+  const { category, minPrice, maxPrice, deliveryTime, status, sortBy, sortOrder, developer, includeInactive } = req.query;
 
-  const filter = { isActive: true };
+  // Build base filter. If a developer query is provided, restrict to that developer
+  // and allow optionally including inactive gigs via `includeInactive=true`.
+  let filter = {};
 
-  if (status) {
-    filter.status = status;
+  if (developer) {
+    filter.developer = developer;
+    if (status) {
+      filter.status = status;
+    } else if (includeInactive !== 'true') {
+      // default to active for non-owner/public requests
+      filter.status = 'active';
+    }
   } else {
-    filter.status = 'active';
+    // Public listing defaults to active only and isActive true
+    filter.isActive = true;
+    if (status) {
+      filter.status = status;
+    } else {
+      filter.status = 'active';
+    }
   }
 
   if (category && category !== 'all') {

@@ -2,10 +2,8 @@ const mongoose = require('mongoose');
 
 const agreementSchema = new mongoose.Schema({
   agreementId: {
-    type: String,
-    unique: true,
-    required: true,
-    index: true
+    type: String
+    // not required at schema level; pre-save hook generates an ID for new agreements
   },
   client: {
     type: mongoose.Schema.Types.ObjectId,
@@ -332,6 +330,12 @@ agreementSchema.index({ developer: 1, status: 1 });
 agreementSchema.index({ status: 1, createdAt: -1 });
 agreementSchema.index({ 'blockchain.isRecorded': 1 });
 agreementSchema.index({ 'metadata.lastActivityAt': -1 });
+
+// Ensure agreementId uniqueness but avoid duplicate-key on null/missing values
+agreementSchema.index(
+  { agreementId: 1 },
+  { unique: true, partialFilterExpression: { agreementId: { $exists: true, $ne: null } } }
+);
 
 // Virtual for progress percentage
 agreementSchema.virtual('progressPercentage').get(function() {

@@ -124,8 +124,7 @@ const transactionSchema = new mongoose.Schema({
       enum: ['mainnet', 'sepolia', 'goerli', 'polygon', 'mumbai', 'local']
     },
     transactionHash: {
-      type: String,
-      index: true
+      type: String
     },
     blockNumber: {
       type: Number

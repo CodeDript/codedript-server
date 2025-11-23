@@ -33,14 +33,24 @@ function parseMongoHostPort(uri) {
 	}
 }
 
-async function checkMongoConnection(timeout = 3000) {
+async function checkMongoConnection(timeout = 5000) {
 	const uri = process.env.MONGODB_URI;
 	if (!uri) return { ok: false, reason: 'MONGODB_URI missing' };
 
 	try {
 		const { MongoClient } = require('mongodb');
-		const client = new MongoClient(uri, { serverSelectionTimeoutMS: timeout });
-		await client.connect();
+		const client = new MongoClient(uri, { 
+			serverSelectionTimeoutMS: timeout,
+			connectTimeoutMS: timeout,
+			socketTimeoutMS: timeout
+		});
+		
+		const connectPromise = client.connect();
+		const timeoutPromise = new Promise((_, reject) => 
+			setTimeout(() => reject(new Error('Connection timeout')), timeout)
+		);
+		
+		await Promise.race([connectPromise, timeoutPromise]);
 		await client.db().admin().ping();
 		await client.close();
 		return { ok: true };
@@ -62,7 +72,7 @@ async function checkMongoConnection(timeout = 3000) {
 	}
 }
 
-async function checkSupabaseConnection(timeout = 3000) {
+async function checkSupabaseConnection(timeout = 5000) {
 	const url = process.env.SUPABASE_URL;
 	const key = process.env.SUPABASE_ANON_KEY;
 	if (!url || !key) return { ok: false, reason: 'SUPABASE_URL or SUPABASE_ANON_KEY missing' };
@@ -73,7 +83,12 @@ async function checkSupabaseConnection(timeout = 3000) {
 		const controller = new AbortController();
 		const id = setTimeout(() => controller.abort(), timeout);
 		try {
-			const { data, error } = await supabase.storage.listBuckets({ signal: controller.signal });
+			const listPromise = supabase.storage.listBuckets({ signal: controller.signal });
+			const timeoutPromise = new Promise((_, reject) => 
+				setTimeout(() => reject(new Error('Request timeout')), timeout)
+			);
+			
+			const { data, error } = await Promise.race([listPromise, timeoutPromise]);
 			clearTimeout(id);
 			if (error) return { ok: false, reason: error.message || String(error) };
 			return { ok: true };

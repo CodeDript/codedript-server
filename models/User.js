@@ -121,8 +121,7 @@ const userSchema = new mongoose.Schema({
 });
 
 // Indexes for performance
-userSchema.index({ email: 1 });
-userSchema.index({ walletAddress: 1 });
+// Compound indexes for common queries
 userSchema.index({ role: 1 });
 userSchema.index({ 'profile.skills': 1 });
 userSchema.index({ createdAt: -1 });
