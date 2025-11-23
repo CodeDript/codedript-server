@@ -46,11 +46,6 @@ const gigSchema = new mongoose.Schema({
     type: String,
     trim: true
   },
-  skills: [{
-    type: String,
-    required: true,
-    trim: true
-  }],
   pricing: {
     type: {
       type: String,
@@ -146,7 +141,6 @@ const gigSchema = new mongoose.Schema({
 // Compound indexes for efficient queries
 gigSchema.index({ developer: 1, status: 1 });
 gigSchema.index({ category: 1, status: 1 });
-gigSchema.index({ skills: 1, status: 1 });
 gigSchema.index({ 'pricing.amount': 1 });
 gigSchema.index({ 'rating.average': -1 });
 gigSchema.index({ createdAt: -1 });
@@ -156,7 +150,6 @@ gigSchema.index({ tags: 1 });
 gigSchema.index({ 
   title: 'text', 
   description: 'text', 
-  skills: 'text',
   tags: 'text'
 });
 
@@ -169,11 +162,6 @@ gigSchema.virtual('agreements', {
 
 // Pre-save middleware
 gigSchema.pre('save', function(next) {
-  // Ensure skills array has unique values
-  if (this.isModified('skills')) {
-    this.skills = [...new Set(this.skills)];
-  }
-  
   // Ensure tags are unique and lowercase
   if (this.isModified('tags')) {
     this.tags = [...new Set(this.tags.map(tag => tag.toLowerCase()))];

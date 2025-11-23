@@ -40,7 +40,7 @@ exports.getAllGigs = catchAsync(async (req, res, next) => {
   const limit = parseInt(req.query.limit) || 10;
   const skip = (page - 1) * limit;
 
-  const { category, minPrice, maxPrice, skills, deliveryTime, status } = req.query;
+  const { category, minPrice, maxPrice, deliveryTime, status, sortBy, sortOrder } = req.query;
 
   const filter = { isActive: true };
 
@@ -54,11 +54,6 @@ exports.getAllGigs = catchAsync(async (req, res, next) => {
     filter.category = category;
   }
 
-  if (skills) {
-    const skillArray = skills.split(',').map(s => s.trim());
-    filter.skills = { $in: skillArray };
-  }
-
   if (minPrice || maxPrice) {
     filter['pricing.amount'] = {};
     if (minPrice) filter['pricing.amount'].$gte = parseFloat(minPrice);
@@ -69,12 +64,43 @@ exports.getAllGigs = catchAsync(async (req, res, next) => {
     filter.deliveryTime = { $lte: parseInt(deliveryTime) };
   }
 
+  // Determine sort field and order
+  let sortField = 'createdAt';
+  let sortDirection = -1;
+
+  if (sortBy) {
+    switch(sortBy) {
+      case 'rating':
+        sortField = 'rating.average';
+        break;
+      case 'views':
+        sortField = 'statistics.views';
+        break;
+      case 'createdAt':
+      default:
+        sortField = 'createdAt';
+        break;
+    }
+  }
+
+  if (sortOrder && sortOrder === 'asc') {
+    sortDirection = 1;
+  }
+
+  const sortOptions = {};
+  sortOptions[sortField] = sortDirection;
+  
+  // Add secondary sort by rating count for rating sort, or by createdAt for others
+  if (sortBy === 'rating') {
+    sortOptions['rating.count'] = sortDirection;
+  }
+
   const [gigs, total] = await Promise.all([
     Gig.find(filter)
-      .populate('developer', 'profile email reputation')
+      .populate('developer', 'profile email reputation walletAddress createdAt')
       .skip(skip)
       .limit(limit)
-      .sort({ createdAt: -1 }),
+      .sort(sortOptions),
     Gig.countDocuments(filter)
   ]);
 
@@ -88,7 +114,7 @@ exports.getAllGigs = catchAsync(async (req, res, next) => {
  */
 exports.getGigById = catchAsync(async (req, res, next) => {
   const gig = await Gig.findById(req.params.id)
-    .populate('developer', 'profile email reputation statistics');
+    .populate('developer', 'profile email reputation statistics walletAddress createdAt');
 
   if (!gig) {
     return next(new AppError('Gig not found', 404));
