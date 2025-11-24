@@ -18,31 +18,24 @@ const gigSchema = new mongoose.Schema({
     type: String,
     required: [true, 'Gig description is required'],
     trim: true,
-    minlength: [50, 'Description must be at least 50 characters'],
+    minlength: [10, 'Description must be at least 50 characters'],
     maxlength: [5000, 'Description cannot exceed 5000 characters']
   },
   category: {
     type: String,
     required: [true, 'Category is required'],
-    enum: {
-      values: [
-        'web-development',
-        'mobile-development',
-        'blockchain-development',
-        'ai-ml',
-        'data-science',
-        'devops',
-        'ui-ux-design',
-        'smart-contracts',
-        'backend',
-        'frontend',
-        'full-stack',
-        'other'
-      ],
-      message: '{VALUE} is not a valid category'
-    }
+    trim: true
   },
   subcategory: {
+    type: String,
+    trim: true
+  },
+  receivingAddress: {
+    type: String,
+    trim: true,
+    lowercase: true
+  },
+  requirements: {
     type: String,
     trim: true
   },
@@ -58,8 +51,7 @@ const gigSchema = new mongoose.Schema({
       enum: ['Basic', 'Standard', 'Premium']
     },
     description: [{
-      type: String,
-      required: true
+      type: String
     }],
     price: {
       type: Number,

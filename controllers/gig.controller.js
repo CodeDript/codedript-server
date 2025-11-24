@@ -15,17 +15,76 @@ exports.createGig = catchAsync(async (req, res, next) => {
     return next(new AppError('Only developers can create gigs', 403));
   }
 
+  // Get the latest gigId and increment
+  const lastGig = await Gig.findOne().sort({ gigId: -1 });
+  const newGigId = lastGig ? lastGig.gigId + 1 : 1;
+
+  // Parse packages if sent as JSON string
+  let packages = req.body.packages;
+  if (typeof packages === 'string') {
+    try {
+      packages = JSON.parse(packages);
+    } catch (err) {
+      return next(new AppError('Invalid packages format', 400));
+    }
+  }
+
+  // Build gig data
   const gigData = {
-    ...req.body,
-    developer: req.user._id
+    developer: req.user._id,
+    gigId: newGigId,
+    title: req.body.title,
+    description: req.body.description,
+    category: req.body.category || 'other',
+    subcategory: req.body.subcategory,
+    receivingAddress: req.body.receivingAddress?.toLowerCase()?.trim(),
+    requirements: req.body.requirements,
+    packages: packages || [],
+    pricing: {
+      type: req.body.pricingType || 'fixed',
+      amount: parseFloat(req.body.pricingAmount) || 0,
+      currency: req.body.pricingCurrency || 'ETH'
+    },
+    deliveryTime: parseInt(req.body.deliveryTime) || 7,
+    revisions: parseInt(req.body.revisions) || 2,
+    tags: req.body.tags ? (Array.isArray(req.body.tags) ? req.body.tags : req.body.tags.split(',').map(t => t.trim())) : [],
+    status: req.body.status || 'active',
+    images: []
   };
 
+  // Handle image uploads if files are provided
+  if (req.files && req.files.length > 0) {
+    const supabaseService = require('../services/supabaseService');
+    
+    for (const file of req.files) {
+      try {
+        const uploadResult = await supabaseService.uploadGigImage(
+          file.buffer,
+          file.originalname,
+          newGigId.toString()
+        );
+        
+        if (uploadResult.success) {
+          gigData.images.push({
+            url: uploadResult.url,
+            publicId: uploadResult.publicId
+          });
+        }
+      } catch (uploadError) {
+        console.error('Error uploading gig image:', uploadError);
+        // Continue with other images even if one fails
+      }
+    }
+  }
+
+  // Create the gig
   const gig = await Gig.create(gigData);
 
   // Update user statistics
   await req.user.incrementStats('gigsPosted');
 
-  const populatedGig = await Gig.findById(gig._id).populate('developer', 'profile email reputation');
+  // Populate and return
+  const populatedGig = await Gig.findById(gig._id).populate('developer', 'profile email reputation walletAddress');
 
   sendCreatedResponse(res, 'Gig created successfully', populatedGig);
 });
