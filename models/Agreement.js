@@ -295,6 +295,7 @@ const agreementSchema = new mongoose.Schema({
       type: Boolean,
       default: false
     },
+    agreementId: Number, // Smart contract agreement ID
     transactionHash: String,
     blockNumber: Number,
     ipfsHash: String,

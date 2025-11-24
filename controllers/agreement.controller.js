@@ -379,9 +379,67 @@ exports.submitAgreement = catchAsync(async (req, res, next) => {
  * @route POST /api/v1/agreements/:id/client-approve
  * @access Private (Client only)
  */
+/**
+ * Extract blockchain agreement ID from transaction hash and update agreement
+ * @route POST /api/v1/agreements/:id/extract-blockchain-id
+ * @access Private
+ */
+exports.extractBlockchainId = catchAsync(async (req, res, next) => {
+  console.log('🔍 Extracting blockchain ID for agreement:', req.params.id);
+  
+  const agreement = await Agreement.findById(req.params.id);
+
+  if (!agreement) {
+    return next(new AppError('Agreement not found', 404));
+  }
+
+  // Check if user is part of this agreement
+  const isClient = agreement.client && agreement.client.toString() === req.user._id.toString();
+  const isDeveloper = agreement.developer && agreement.developer.toString() === req.user._id.toString();
+  
+  if (!isClient && !isDeveloper) {
+    return next(new AppError('You do not have access to this agreement', 403));
+  }
+
+  // Check if blockchain data exists
+  if (!agreement.blockchain || !agreement.blockchain.transactionHash) {
+    return next(new AppError('No blockchain transaction hash found for this agreement', 400));
+  }
+
+  // Check if agreement ID already exists
+  if (agreement.blockchain.agreementId) {
+    return sendSuccessResponse(res, 200, 'Blockchain agreement ID already set', {
+      agreementId: agreement.blockchain.agreementId,
+      alreadySet: true
+    });
+  }
+
+  const txHash = agreement.blockchain.transactionHash;
+  console.log('📝 Extracting agreement ID from transaction:', txHash);
+
+  // Import the extraction logic (you'll need to add this to your backend)
+  // For now, we'll accept it from the request body
+  const { blockchainAgreementId } = req.body;
+
+  if (!blockchainAgreementId && blockchainAgreementId !== 0) {
+    return next(new AppError('blockchainAgreementId is required in request body', 400));
+  }
+
+  // Update agreement with blockchain ID
+  agreement.blockchain.agreementId = blockchainAgreementId;
+  await agreement.save();
+
+  console.log('✅ Updated blockchain agreement ID:', blockchainAgreementId);
+
+  sendSuccessResponse(res, 200, 'Blockchain agreement ID extracted and saved', {
+    agreementId: blockchainAgreementId,
+    transactionHash: txHash
+  });
+});
+
 exports.clientApproveAgreement = catchAsync(async (req, res, next) => {
   console.log('👤 Client approving agreement:', req.params.id);
-  const { blockchainTxHash, ipfsHash } = req.body;
+  const { blockchainTxHash, ipfsHash, blockchainAgreementId } = req.body;
   
   const agreement = await Agreement.findById(req.params.id);
 
@@ -417,11 +475,14 @@ exports.clientApproveAgreement = catchAsync(async (req, res, next) => {
 
   // Store blockchain data
   agreement.blockchain = {
+    agreementId: blockchainAgreementId, // Store the on-chain agreement ID
     transactionHash: blockchainTxHash,
     ipfsHash: ipfsHash || agreement.blockchain?.ipfsHash,
     isRecorded: true,
     network: 'sepolia'
   };
+
+  console.log('✅ Stored blockchain agreement ID:', blockchainAgreementId);
 
   // Change status to active (agreement is now recorded on blockchain and client has paid)
   agreement.status = 'active';

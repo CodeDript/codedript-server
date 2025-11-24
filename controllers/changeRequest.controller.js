@@ -239,7 +239,7 @@ exports.ignoreChangeRequest = catchAsync(async (req, res, next) => {
  * @access Private
  */
 exports.approveChangeRequest = catchAsync(async (req, res, next) => {
-  const { reason } = req.body;
+  const { reason, transactionHash } = req.body;
 
   const changeRequest = await ChangeRequest.findById(req.params.id).populate('agreement');
 
@@ -258,6 +258,15 @@ exports.approveChangeRequest = catchAsync(async (req, res, next) => {
   }
 
   await changeRequest.approveRequest(req.user._id, reason);
+
+  // Store blockchain transaction hash if provided
+  if (transactionHash) {
+    changeRequest.blockchain = {
+      transactionHash,
+      recordedAt: new Date()
+    };
+    await changeRequest.save();
+  }
 
   // Update agreement total value
   if (changeRequest.confirmation.amount) {

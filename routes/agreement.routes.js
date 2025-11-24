@@ -41,10 +41,17 @@ router.put('/:id', authenticate, agreementController.updateAgreement);
 
 /**
  * @route   POST /api/v1/agreements/:id/submit
- * @desc    Submit agreement for acceptance
+ * @desc    Submit agreement to developer for review
  * @access  Private (Client only)
  */
 router.post('/:id/submit', authenticate, agreementController.submitAgreement);
+
+/**
+ * @route   POST /api/v1/agreements/:id/extract-blockchain-id
+ * @desc    Extract blockchain agreement ID from transaction hash (for existing agreements)
+ * @access  Private
+ */
+router.post('/:id/extract-blockchain-id', authenticate, agreementController.extractBlockchainId);
 
 /**
  * @route   POST /api/v1/agreements/:id/client-approve
