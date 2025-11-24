@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const agreementController = require('../controllers/agreement.controller');
-const { authenticate } = require('../middlewares/auth');
+const { authenticate, optionalAuth } = require('../middlewares/auth');
 const { upload } = require('../middlewares/upload');
 
 /**
@@ -21,9 +21,9 @@ router.get('/', authenticate, agreementController.getAllAgreements);
 /**
  * @route   POST /api/v1/agreements
  * @desc    Create new agreement
- * @access  Private
+ * @access  Public/Private (optional auth)
  */
-router.post('/', authenticate, agreementController.createAgreement);
+router.post('/', optionalAuth, agreementController.createAgreement);
 
 /**
  * @route   GET /api/v1/agreements/:id
@@ -45,6 +45,20 @@ router.put('/:id', authenticate, agreementController.updateAgreement);
  * @access  Private (Client only)
  */
 router.post('/:id/submit', authenticate, agreementController.submitAgreement);
+
+/**
+ * @route   POST /api/v1/agreements/:id/client-approve
+ * @desc    Client approves agreement after developer sets payment terms
+ * @access  Private (Client only)
+ */
+router.post('/:id/client-approve', authenticate, agreementController.clientApproveAgreement);
+
+/**
+ * @route   POST /api/v1/agreements/:id/developer-accept
+ * @desc    Developer accepts agreement with payment terms
+ * @access  Private (Developer only)
+ */
+router.post('/:id/developer-accept', authenticate, agreementController.developerAcceptAgreement);
 
 /**
  * @route   POST /api/v1/agreements/:id/respond

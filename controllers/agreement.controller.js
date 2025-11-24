@@ -12,54 +12,143 @@ const User = require('../models/User');
  * @access Private
  */
 exports.createAgreement = catchAsync(async (req, res, next) => {
-  const { developerId, gigId, project, financials, milestones, terms } = req.body;
+  const { 
+    developerId, 
+    gigId, 
+    project, 
+    financials, 
+    milestones, 
+    terms,
+    clientInfo,
+    developerInfo,
+    blockchain,
+    documents
+  } = req.body;
 
-  // Verify developer exists
-  const developer = await User.findById(developerId);
-  if (!developer) {
-    return next(new AppError('Developer not found', 404));
+  console.log('📝 Creating agreement with payload:', JSON.stringify(req.body, null, 2));
+
+  // Handle both old and new approaches
+  let clientId = req.user?._id;
+  let devId = developerId;
+
+  // If developer info is provided with wallet, try to find user
+  if (developerInfo && developerInfo.walletAddress) {
+    const normalizedDevWallet = developerInfo.walletAddress.toLowerCase().trim();
+    console.log('🔍 Looking up developer by wallet:', normalizedDevWallet);
+    const developer = await User.findOne({ walletAddress: normalizedDevWallet });
+    if (developer) {
+      devId = developer._id;
+      console.log('✅ Found developer:', developer._id, developer.email);
+    } else {
+      console.warn('⚠️ Developer not found by wallet:', normalizedDevWallet);
+      console.warn('⚠️ Agreement will be created without developer ObjectId link');
+    }
   }
 
-  if (developer.role !== 'developer' && developer.role !== 'both') {
-    return next(new AppError('Selected user is not a developer', 400));
+  // If client info is provided with wallet, try to find user
+  if (clientInfo && clientInfo.walletAddress && !req.user) {
+    const normalizedClientWallet = clientInfo.walletAddress.toLowerCase().trim();
+    console.log('🔍 Looking up client by wallet:', normalizedClientWallet);
+    const client = await User.findOne({ walletAddress: normalizedClientWallet });
+    if (client) {
+      clientId = client._id;
+      console.log('✅ Found client:', client._id, client.email);
+    } else {
+      console.warn('⚠️ Client not found by wallet:', normalizedClientWallet);
+    }
   }
 
-  // Create agreement
+  // Process documents with IPFS data
+  const processedDocuments = {};
+  if (documents) {
+    // Process contractPdf
+    if (documents.contractPdf && documents.contractPdf.ipfsHash) {
+      processedDocuments.contractPdf = {
+        ipfsHash: documents.contractPdf.ipfsHash,
+        url: documents.contractPdf.url || `https://copper-near-junglefowl-259.mypinata.cloud/ipfs/${documents.contractPdf.ipfsHash}`,
+        uploadedAt: documents.contractPdf.uploadedAt || new Date()
+      };
+      console.log('📄 Processed contractPdf with IPFS:', processedDocuments.contractPdf);
+    }
+    
+    // Process projectFiles
+    if (documents.projectFiles && Array.isArray(documents.projectFiles)) {
+      processedDocuments.projectFiles = documents.projectFiles.map(file => ({
+        name: file.name,
+        url: file.url || (file.ipfsHash ? `https://copper-near-junglefowl-259.mypinata.cloud/ipfs/${file.ipfsHash}` : undefined),
+        ipfsHash: file.ipfsHash,
+        description: file.description || 'Project file',
+        uploadedAt: file.uploadedAt || new Date()
+      }));
+      console.log('📎 Processed project files with IPFS:', processedDocuments.projectFiles);
+    }
+    
+    // Process additionalFiles
+    if (documents.additionalFiles) {
+      processedDocuments.additionalFiles = documents.additionalFiles;
+    }
+  }
+
+  // Create agreement with new schema
   const agreementData = {
-    client: req.user._id,
-    developer: developerId,
+    client: clientId,
+    developer: devId,
+    clientInfo: clientInfo || {
+      name: req.user?.name || 'Unknown',
+      email: req.user?.email || 'unknown@example.com',
+      walletAddress: req.user?.walletAddress || '0x0'
+    },
+    developerInfo: developerInfo || {
+      name: 'Unknown',
+      email: 'unknown@example.com',
+      walletAddress: '0x0'
+    },
     gig: gigId || undefined,
     project,
     financials,
     terms: terms || {},
-    status: 'draft'
+    status: blockchain?.isRecorded ? 'active' : 'pending_developer', // Set to pending_developer for developer to accept
+    blockchain: blockchain || {},
+    documents: processedDocuments
   };
 
-  const agreement = await Agreement.create(agreementData);
+  console.log('💾 Saving agreement to database...', JSON.stringify(agreementData, null, 2));
 
-  // Create milestones if provided
-  if (milestones && milestones.length > 0) {
-    const milestonePromises = milestones.map((milestone, index) => 
-      Milestone.create({
-        agreement: agreement._id,
-        milestoneNumber: index + 1,
-        ...milestone
-      })
-    );
-    
-    const createdMilestones = await Promise.all(milestonePromises);
-    agreement.milestones = createdMilestones.map(m => m._id);
-    await agreement.updateMilestoneStats();
+  try {
+    const agreement = await Agreement.create(agreementData);
+    console.log('✅ Agreement created successfully:', agreement._id);
+
+    // Create milestones if provided
+    if (milestones && milestones.length > 0) {
+      const milestonePromises = milestones.map((milestone, index) => 
+        Milestone.create({
+          agreement: agreement._id,
+          milestoneNumber: index + 1,
+          ...milestone
+        })
+      );
+      
+      const createdMilestones = await Promise.all(milestonePromises);
+      agreement.milestones = createdMilestones.map(m => m._id);
+      await agreement.updateMilestoneStats();
+    }
+
+    // Update user statistics if authenticated
+    if (req.user) {
+      await req.user.incrementStats('agreementsCreated');
+    }
+
+    const populatedAgreement = await Agreement.findById(agreement._id)
+      .populate('client developer gig')
+      .populate('milestones');
+
+    sendCreatedResponse(res, 'Agreement created successfully', populatedAgreement);
+  } catch (error) {
+    console.error('❌ Agreement creation error:', error);
+    console.error('Error details:', error.message);
+    console.error('Validation errors:', error.errors);
+    throw error;
   }
-
-  // Update user statistics
-  await req.user.incrementStats('agreementsCreated');
-
-  const populatedAgreement = await Agreement.findById(agreement._id)
-    .populate('client developer gig')
-    .populate('milestones');
-
-  sendCreatedResponse(res, 'Agreement created successfully', populatedAgreement);
 });
 
 /**
@@ -73,8 +162,25 @@ exports.getAllAgreements = catchAsync(async (req, res, next) => {
   const skip = (page - 1) * limit;
   const { status, role } = req.query;
 
+  // Normalize user's wallet address for matching
+  const userWallet = req.user.walletAddress ? req.user.walletAddress.toLowerCase().trim() : null;
+
+  console.log('🔍 Fetching agreements for user:', req.user._id);
+  console.log('📧 User email:', req.user.email);
+  console.log('💼 User wallet:', userWallet);
+  console.log('🎭 Filter role:', role);
+  console.log('📊 Filter status:', status);
+
   let filter = {
-    $or: [{ client: req.user._id }, { developer: req.user._id }]
+    $or: [
+      { client: req.user._id }, 
+      { developer: req.user._id },
+      // Fallback: match by wallet address in Info fields
+      ...(userWallet ? [
+        { 'clientInfo.walletAddress': userWallet },
+        { 'developerInfo.walletAddress': userWallet }
+      ] : [])
+    ]
   };
 
   if (status) {
@@ -82,12 +188,24 @@ exports.getAllAgreements = catchAsync(async (req, res, next) => {
   }
 
   if (role === 'client') {
-    filter = { client: req.user._id };
+    filter = {
+      $or: [
+        { client: req.user._id },
+        ...(userWallet ? [{ 'clientInfo.walletAddress': userWallet }] : [])
+      ]
+    };
     if (status) filter.status = status;
   } else if (role === 'developer') {
-    filter = { developer: req.user._id };
+    filter = {
+      $or: [
+        { developer: req.user._id },
+        ...(userWallet ? [{ 'developerInfo.walletAddress': userWallet }] : [])
+      ]
+    };
     if (status) filter.status = status;
   }
+
+  console.log('🔎 MongoDB filter:', JSON.stringify(filter, null, 2));
 
   const [agreements, total] = await Promise.all([
     Agreement.find(filter)
@@ -98,6 +216,12 @@ exports.getAllAgreements = catchAsync(async (req, res, next) => {
       .sort({ 'metadata.lastActivityAt': -1 }),
     Agreement.countDocuments(filter)
   ]);
+
+  console.log(`✅ Found ${agreements.length} agreements (total: ${total})`);
+  if (agreements.length > 0) {
+    console.log('📋 Agreement IDs:', agreements.map(a => a._id.toString()));
+    console.log('📋 Agreement statuses:', agreements.map(a => a.status));
+  }
 
   sendPaginatedResponse(res, 200, 'Agreements retrieved successfully', agreements, { page, limit, total });
 });
@@ -248,6 +372,164 @@ exports.submitAgreement = catchAsync(async (req, res, next) => {
   // TODO: Send notification to developer
 
   sendSuccessResponse(res, 200, 'Agreement submitted for acceptance', agreement);
+});
+
+/**
+ * Client approves agreement after developer sets payment terms
+ * @route POST /api/v1/agreements/:id/client-approve
+ * @access Private (Client only)
+ */
+exports.clientApproveAgreement = catchAsync(async (req, res, next) => {
+  console.log('👤 Client approving agreement:', req.params.id);
+  const { blockchainTxHash, ipfsHash } = req.body;
+  
+  const agreement = await Agreement.findById(req.params.id);
+
+  if (!agreement) {
+    return next(new AppError('Agreement not found', 404));
+  }
+
+  // Check if user is the client (by ObjectId or wallet address)
+  const isClientById = agreement.client && agreement.client.toString() === req.user._id.toString();
+  const userWallet = req.user.walletAddress?.toLowerCase().trim();
+  const isClientByWallet = userWallet && agreement.clientInfo?.walletAddress?.toLowerCase().trim() === userWallet;
+  
+  if (!isClientById && !isClientByWallet) {
+    console.error('❌ User is not the client of this agreement');
+    return next(new AppError('Only the client can approve this agreement', 403));
+  }
+
+  // Only allow if status is pending_client
+  if (agreement.status !== 'pending_client') {
+    return next(new AppError(`Cannot approve agreement with status: ${agreement.status}`, 400));
+  }
+
+  // Blockchain transaction hash is required
+  if (!blockchainTxHash) {
+    return next(new AppError('Blockchain transaction hash is required', 400));
+  }
+
+  // Link client ObjectId if not already set
+  if (!agreement.client) {
+    agreement.client = req.user._id;
+    console.log('✅ Linked client ObjectId:', req.user._id);
+  }
+
+  // Store blockchain data
+  agreement.blockchain = {
+    transactionHash: blockchainTxHash,
+    ipfsHash: ipfsHash || agreement.blockchain?.ipfsHash,
+    isRecorded: true,
+    network: 'sepolia'
+  };
+
+  // Change status to active (agreement is now recorded on blockchain and client has paid)
+  agreement.status = 'active';
+  
+  await agreement.save();
+
+  const updatedAgreement = await Agreement.findById(agreement._id)
+    .populate('client developer gig')
+    .populate('milestones');
+
+  console.log('✅ Agreement approved by client and recorded on blockchain, status changed to active');
+  sendSuccessResponse(res, 200, 'Agreement approved and activated successfully', updatedAgreement);
+});
+
+/**
+ * Developer accepts agreement with payment terms
+ * @route POST /api/v1/agreements/:id/developer-accept
+ * @access Private (Developer only)
+ */
+exports.developerAcceptAgreement = catchAsync(async (req, res, next) => {
+  const { financials, milestones } = req.body;
+  
+  console.log('👨‍💻 Developer accepting agreement:', req.params.id);
+  console.log('Financials:', financials);
+  console.log('Milestones:', milestones);
+  
+  const agreement = await Agreement.findById(req.params.id);
+
+  if (!agreement) {
+    return next(new AppError('Agreement not found', 404));
+  }
+
+  // Check if user is the developer (by ObjectId or wallet address)
+  const isDeveloperById = agreement.developer && agreement.developer.toString() === req.user._id.toString();
+  const userWallet = req.user.walletAddress?.toLowerCase().trim();
+  const isDeveloperByWallet = userWallet && agreement.developerInfo?.walletAddress?.toLowerCase().trim() === userWallet;
+  
+  if (!isDeveloperById && !isDeveloperByWallet) {
+    console.error('❌ User is not the developer of this agreement');
+    console.error('Agreement developer:', agreement.developer);
+    console.error('Agreement developerInfo.walletAddress:', agreement.developerInfo?.walletAddress);
+    console.error('User ID:', req.user._id);
+    console.error('User wallet:', userWallet);
+    return next(new AppError('Only the developer can accept this agreement', 403));
+  }
+
+  // Only allow if status is pending_developer
+  if (agreement.status !== 'pending_developer') {
+    return next(new AppError(`Cannot accept agreement with status: ${agreement.status}`, 400));
+  }
+
+  // Link developer ObjectId if not already set
+  if (!agreement.developer) {
+    agreement.developer = req.user._id;
+    console.log('✅ Linked developer ObjectId:', req.user._id);
+  }
+
+  // Update financials if provided
+  if (financials) {
+    agreement.financials = {
+      ...agreement.financials,
+      totalValue: financials.totalValue || agreement.financials.totalValue,
+      currency: financials.currency || agreement.financials.currency
+    };
+  }
+
+  // Update or create milestones
+  if (milestones && milestones.length > 0) {
+    // Delete existing milestones
+    if (agreement.milestones && agreement.milestones.length > 0) {
+      await Milestone.deleteMany({ _id: { $in: agreement.milestones } });
+    }
+
+    // Create new milestones
+    const milestonePromises = milestones.map((milestone, index) => 
+      Milestone.create({
+        agreement: agreement._id,
+        milestoneNumber: index + 1,
+        title: milestone.title,
+        description: milestone.description || milestone.title,
+        deliverables: milestone.deliverables || [],
+        financials: {
+          value: milestone.financials?.value || parseFloat(milestone.amount) || 0,
+          currency: milestone.financials?.currency || financials?.currency || agreement.financials.currency
+        },
+        timeline: {
+          dueDate: milestone.timeline?.dueDate || agreement.project.expectedEndDate
+        }
+      })
+    );
+    
+    const createdMilestones = await Promise.all(milestonePromises);
+    agreement.milestones = createdMilestones.map(m => m._id);
+    console.log('✅ Created milestones:', createdMilestones.length);
+  }
+
+  // Change status to pending_client for client review
+  agreement.status = 'pending_client';
+  
+  await agreement.save();
+  await agreement.updateMilestoneStats();
+
+  const updatedAgreement = await Agreement.findById(agreement._id)
+    .populate('client developer gig')
+    .populate('milestones');
+
+  console.log('✅ Agreement accepted by developer, status changed to pending_client');
+  sendSuccessResponse(res, 200, 'Agreement accepted successfully', updatedAgreement);
 });
 
 /**

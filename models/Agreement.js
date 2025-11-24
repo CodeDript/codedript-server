@@ -8,14 +8,50 @@ const agreementSchema = new mongoose.Schema({
   client: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: [true, 'Client reference is required'],
     index: true
+  },
+  clientInfo: {
+    name: {
+      type: String,
+      required: [true, 'Client name is required'],
+      trim: true
+    },
+    email: {
+      type: String,
+      required: [true, 'Client email is required'],
+      trim: true,
+      lowercase: true
+    },
+    walletAddress: {
+      type: String,
+      required: [true, 'Client wallet address is required'],
+      trim: true,
+      lowercase: true
+    }
   },
   developer: {
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User',
-    required: [true, 'Developer reference is required'],
     index: true
+  },
+  developerInfo: {
+    name: {
+      type: String,
+      required: [true, 'Developer name is required'],
+      trim: true
+    },
+    email: {
+      type: String,
+      required: [true, 'Developer email is required'],
+      trim: true,
+      lowercase: true
+    },
+    walletAddress: {
+      type: String,
+      required: [true, 'Developer wallet address is required'],
+      trim: true,
+      lowercase: true
+    }
   },
   gig: {
     type: mongoose.Schema.Types.ObjectId,
