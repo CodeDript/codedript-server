@@ -428,6 +428,53 @@ exports.clientApproveAgreement = catchAsync(async (req, res, next) => {
   
   await agreement.save();
 
+  // Create transaction document for the escrow deposit
+  try {
+    const developer = await User.findById(agreement.developer);
+    
+    const transactionData = {
+      type: 'escrow_deposit',
+      agreement: agreement._id,
+      from: {
+        user: req.user._id,
+        walletAddress: req.user.walletAddress || agreement.clientInfo.walletAddress
+      },
+      to: {
+        user: agreement.developer,
+        walletAddress: developer.walletAddress || agreement.developerInfo.walletAddress
+      },
+      amount: {
+        value: agreement.financials.totalValue,
+        currency: agreement.financials.currency || 'ETH'
+      },
+      fees: {
+        platformFee: agreement.financials.platformFee?.amount || (agreement.financials.totalValue * 2.5) / 100,
+        networkFee: 0,
+        totalFees: agreement.financials.platformFee?.amount || (agreement.financials.totalValue * 2.5) / 100
+      },
+      status: 'completed',
+      blockchain: {
+        isOnChain: true,
+        network: 'sepolia',
+        transactionHash: blockchainTxHash
+      },
+      metadata: {
+        description: `Escrow deposit for agreement: ${agreement.project.name}`,
+        initiatedBy: req.user._id
+      },
+      timestamps: {
+        initiated: new Date(),
+        completed: new Date()
+      }
+    };
+
+    const transaction = await Transaction.create(transactionData);
+    console.log('✅ Transaction document created:', transaction.transactionId);
+  } catch (transactionError) {
+    console.error('⚠️ Failed to create transaction document:', transactionError.message);
+    // Don't fail the agreement approval if transaction creation fails
+  }
+
   const updatedAgreement = await Agreement.findById(agreement._id)
     .populate('client developer gig')
     .populate('milestones');
