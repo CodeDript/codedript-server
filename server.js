@@ -26,6 +26,7 @@ const milestoneRoutes = require('./routes/milestone.routes');
 const transactionRoutes = require('./routes/transaction.routes');
 const reviewRoutes = require('./routes/review.routes');
 const uploadRoutes = require('./routes/upload.routes');
+const changeRequestRoutes = require('./routes/changeRequest.routes');
 
 /**
  * Initialize Express Application
@@ -155,6 +156,7 @@ app.use(`${API_PREFIX}/milestones`, milestoneRoutes);
 app.use(`${API_PREFIX}/transactions`, transactionRoutes);
 app.use(`${API_PREFIX}/reviews`, reviewRoutes);
 app.use(`${API_PREFIX}/upload`, uploadRoutes);
+app.use(`${API_PREFIX}/change-requests`, changeRequestRoutes);
 
 /**
  * 404 Handler - Route Not Found

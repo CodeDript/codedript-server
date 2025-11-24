@@ -75,6 +75,20 @@ router.post('/:id/approve', authenticate, milestoneController.approveMilestone);
 router.post('/:id/request-revision', authenticate, milestoneController.requestRevision);
 
 /**
+ * @route   POST /api/v1/milestones/:id/complete
+ * @desc    Complete milestone and move next to in_progress
+ * @access  Private (Developer only)
+ */
+router.post('/:id/complete', authenticate, milestoneController.completeMilestone);
+
+/**
+ * @route   POST /api/v1/milestones/:id/add-deliverable
+ * @desc    Add deliverable with IPFS hash to milestone
+ * @access  Private (Developer only)
+ */
+router.post('/:id/add-deliverable', authenticate, milestoneController.addDeliverable);
+
+/**
  * @route   POST /api/v1/milestones/:id/files
  * @desc    Upload milestone files
  * @access  Private (Developer only)

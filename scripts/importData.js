@@ -51,8 +51,43 @@ const importData = async () => {
 
     // Import agreements (reference users and gigs)
     console.log('📥 Importing agreements...');
-    await Agreement.insertMany(agreements);
-    console.log(`✅ Created ${agreements.length} agreements`);
+
+    // Ensure agreements include required clientInfo and developerInfo
+    console.log('🔧 Preparing agreements with client/developer info...');
+    const preparedAgreements = [];
+    for (const agr of agreements) {
+      try {
+        const clientUser = await User.findById(agr.client);
+        const developerUser = await User.findById(agr.developer);
+
+        if (clientUser) {
+          agr.clientInfo = {
+            name: (clientUser.profile && clientUser.profile.name) || clientUser.username || '',
+            email: clientUser.email || '',
+            walletAddress: clientUser.walletAddress || ''
+          };
+        } else {
+          console.warn(`⚠️  Client user not found for agreement ${agr.agreementId} (id=${agr.client})`);
+        }
+
+        if (developerUser) {
+          agr.developerInfo = {
+            name: (developerUser.profile && developerUser.profile.name) || developerUser.username || '',
+            email: developerUser.email || '',
+            walletAddress: developerUser.walletAddress || ''
+          };
+        } else {
+          console.warn(`⚠️  Developer user not found for agreement ${agr.agreementId} (id=${agr.developer})`);
+        }
+
+        preparedAgreements.push(agr);
+      } catch (e) {
+        console.warn('⚠️  Error preparing agreement', agr && agr.agreementId, e.message || e);
+      }
+    }
+
+    await Agreement.insertMany(preparedAgreements);
+    console.log(`✅ Created ${preparedAgreements.length} agreements`);
 
     // Import reviews (reference agreements, gigs, and users)
     console.log('📥 Importing reviews...');

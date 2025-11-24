@@ -423,3 +423,101 @@ exports.getMilestoneStatistics = catchAsync(async (req, res, next) => {
 
   sendSuccessResponse(res, 200, 'Milestone statistics retrieved', statistics);
 });
+
+/**
+ * Complete milestone and move next to in_progress
+ * @route POST /api/v1/milestones/:id/complete
+ * @access Private (Developer only)
+ */
+exports.completeMilestone = catchAsync(async (req, res, next) => {
+  const milestone = await Milestone.findById(req.params.id).populate('agreement');
+
+  if (!milestone) {
+    return next(new AppError('Milestone not found', 404));
+  }
+
+  const agreement = await Agreement.findById(milestone.agreement._id);
+  
+  if (agreement.developer.toString() !== req.user._id.toString()) {
+    return next(new AppError('Only the developer can complete milestones', 403));
+  }
+
+  if (milestone.status === 'completed') {
+    return next(new AppError('Milestone is already completed', 400));
+  }
+
+  // Mark current milestone as completed
+  milestone.status = 'completed';
+  milestone.timeline.completedDate = new Date();
+  await milestone.save();
+
+  // Find next pending milestone in the same agreement and set it to in_progress
+  const nextMilestone = await Milestone.findOne({
+    agreement: milestone.agreement._id,
+    milestoneNumber: { $gt: milestone.milestoneNumber },
+    status: 'pending'
+  }).sort({ milestoneNumber: 1 });
+
+  if (nextMilestone) {
+    nextMilestone.status = 'in_progress';
+    nextMilestone.timeline.startDate = new Date();
+    await nextMilestone.save();
+  }
+
+  // Update agreement milestone stats
+  await agreement.updateMilestoneStats();
+
+  const updatedMilestones = await Milestone.find({ agreement: milestone.agreement._id }).sort({ milestoneNumber: 1 });
+
+  sendSuccessResponse(res, 200, 'Milestone completed successfully', {
+    completedMilestone: milestone,
+    nextMilestone,
+    allMilestones: updatedMilestones
+  });
+});
+
+/**
+ * Add deliverable with IPFS hash to milestone
+ * @route POST /api/v1/milestones/:id/add-deliverable
+ * @access Private (Developer only)
+ */
+exports.addDeliverable = catchAsync(async (req, res, next) => {
+  const { ipfsHash, fileName, fileUrl, description } = req.body;
+
+  if (!ipfsHash || !fileName) {
+    return next(new AppError('IPFS hash and file name are required', 400));
+  }
+
+  const milestone = await Milestone.findById(req.params.id).populate('agreement');
+
+  if (!milestone) {
+    return next(new AppError('Milestone not found', 404));
+  }
+
+  const agreement = await Agreement.findById(milestone.agreement._id);
+  
+  if (agreement.developer.toString() !== req.user._id.toString()) {
+    return next(new AppError('Only the developer can add deliverables', 403));
+  }
+
+  // Add to submission.demoFiles array with IPFS hash
+  if (!milestone.submission.demoFiles) {
+    milestone.submission.demoFiles = [];
+  }
+
+  milestone.submission.demoFiles.push({
+    name: fileName,
+    url: fileUrl || `https://copper-near-junglefowl-259.mypinata.cloud/ipfs/${ipfsHash}`,
+    ipfsHash: ipfsHash,
+    description: description || '',
+    uploadedAt: new Date()
+  });
+
+  milestone.submission.submittedBy = req.user._id;
+  milestone.submission.submittedAt = milestone.submission.submittedAt || new Date();
+
+  await milestone.save();
+
+  sendSuccessResponse(res, 200, 'Deliverable added successfully', milestone);
+});
+
