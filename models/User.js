@@ -4,11 +4,15 @@ const bcrypt = require('bcryptjs');
 const userSchema = new mongoose.Schema({
   email: {
     type: String,
-    required: [true, 'Email is required'],
     unique: true,
+    sparse: true, // Allow null/undefined for unique index
     lowercase: true,
     trim: true,
-    match: [/^\w+([.-]?\w+)*@\w+([.-]?\w+)*(\.\w{2,3})+$/, 'Please enter a valid email']
+    match: [/^\w+([-.]?\w+)*@\w+([-.]?\w+)*(\.\w{2,3})+$/, 'Please enter a valid email']
+  },
+  password: {
+    type: String,
+    select: false // Don't return password by default
   },
   walletAddress: {
     type: String,
@@ -21,10 +25,9 @@ const userSchema = new mongoose.Schema({
   role: {
     type: String,
     enum: {
-      values: ['client', 'developer', 'both'],
+      values: ['client', 'developer',],
       message: '{VALUE} is not a valid role'
     },
-    default: 'both'
   },
   profile: {
     name: {
@@ -103,6 +106,13 @@ const userSchema = new mongoose.Schema({
   },
   lastLogin: {
     type: Date
+  },
+  firstLogin: {
+    type: Date
+  },
+  loginCount: {
+    type: Number,
+    default: 0
   }
 }, {
   timestamps: true,
@@ -111,8 +121,7 @@ const userSchema = new mongoose.Schema({
 });
 
 // Indexes for performance
-userSchema.index({ email: 1 });
-userSchema.index({ walletAddress: 1 });
+// Compound indexes for common queries
 userSchema.index({ role: 1 });
 userSchema.index({ 'profile.skills': 1 });
 userSchema.index({ createdAt: -1 });
@@ -138,8 +147,11 @@ userSchema.virtual('developerAgreements', {
   foreignField: 'developer'
 });
 
-// Pre-save middleware to update timestamps
-userSchema.pre('save', function(next) {
+// Pre-save middleware to hash password and update timestamps
+userSchema.pre('save', async function(next) {
+  if (this.isModified('password') && this.password) {
+    this.password = await bcrypt.hash(this.password, 12);
+  }
   if (this.isModified()) {
     this.updatedAt = Date.now();
   }
@@ -148,8 +160,19 @@ userSchema.pre('save', function(next) {
 
 // Method to update last login
 userSchema.methods.updateLastLogin = async function() {
-  this.lastLogin = new Date();
+  const now = new Date();
+  if (!this.firstLogin) {
+    this.firstLogin = now;
+  }
+  this.lastLogin = now;
+  this.loginCount = (this.loginCount || 0) + 1;
   return this.save({ validateBeforeSave: false });
+};
+
+// Method to compare password
+userSchema.methods.comparePassword = async function(candidatePassword) {
+  if (!this.password) return false;
+  return await bcrypt.compare(candidatePassword, this.password);
 };
 
 // Method to increment statistics

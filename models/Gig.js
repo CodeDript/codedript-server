@@ -18,38 +18,64 @@ const gigSchema = new mongoose.Schema({
     type: String,
     required: [true, 'Gig description is required'],
     trim: true,
-    minlength: [50, 'Description must be at least 50 characters'],
+    minlength: [10, 'Description must be at least 50 characters'],
     maxlength: [5000, 'Description cannot exceed 5000 characters']
   },
   category: {
     type: String,
     required: [true, 'Category is required'],
-    enum: {
-      values: [
-        'web-development',
-        'mobile-development',
-        'blockchain-development',
-        'ai-ml',
-        'data-science',
-        'devops',
-        'ui-ux-design',
-        'smart-contracts',
-        'backend',
-        'frontend',
-        'full-stack',
-        'other'
-      ],
-      message: '{VALUE} is not a valid category'
-    }
+    trim: true
   },
   subcategory: {
     type: String,
     trim: true
   },
-  skills: [{
+  receivingAddress: {
     type: String,
-    required: true,
+    trim: true,
+    lowercase: true
+  },
+  requirements: {
+    type: String,
     trim: true
+  },
+  gigId: {
+    type: Number,
+    unique: true,
+    required: true
+  },
+  packages: [{
+    name: {
+      type: String,
+      required: true,
+      enum: ['Basic', 'Standard', 'Premium']
+    },
+    description: [{
+      type: String
+    }],
+    price: {
+      type: Number,
+      required: true,
+      min: [0, 'Price cannot be negative']
+    },
+    currency: {
+      type: String,
+      default: 'ETH',
+      enum: ['ETH', 'USD']
+    },
+    deliveryTime: {
+      type: Number,
+      required: true,
+      min: [1, 'Delivery time must be at least 1 day']
+    },
+    revisions: {
+      type: Number,
+      required: true,
+      min: [0, 'Revisions cannot be negative']
+    },
+    features: [{
+      type: String
+    }]
   }],
   pricing: {
     type: {
@@ -146,7 +172,6 @@ const gigSchema = new mongoose.Schema({
 // Compound indexes for efficient queries
 gigSchema.index({ developer: 1, status: 1 });
 gigSchema.index({ category: 1, status: 1 });
-gigSchema.index({ skills: 1, status: 1 });
 gigSchema.index({ 'pricing.amount': 1 });
 gigSchema.index({ 'rating.average': -1 });
 gigSchema.index({ createdAt: -1 });
@@ -156,7 +181,6 @@ gigSchema.index({ tags: 1 });
 gigSchema.index({ 
   title: 'text', 
   description: 'text', 
-  skills: 'text',
   tags: 'text'
 });
 
@@ -169,11 +193,6 @@ gigSchema.virtual('agreements', {
 
 // Pre-save middleware
 gigSchema.pre('save', function(next) {
-  // Ensure skills array has unique values
-  if (this.isModified('skills')) {
-    this.skills = [...new Set(this.skills)];
-  }
-  
   // Ensure tags are unique and lowercase
   if (this.isModified('tags')) {
     this.tags = [...new Set(this.tags.map(tag => tag.toLowerCase()))];

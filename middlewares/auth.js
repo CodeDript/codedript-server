@@ -160,14 +160,19 @@ const verifyOwnership = (paramName = 'id', userField = '_id') => {
 
 /**
  * Generate JWT token
- * @param {string} userId - User ID to encode
- * @param {string} expiresIn - Token expiration time
+ * Accepts either a userId string or a payload object (containing at least `id`).
+ * @param {string|object} payloadOrId - User ID or payload to encode
+ * @param {string} expiresIn - Token expiration time override
  */
-const generateToken = (userId, expiresIn = null) => {
+const generateToken = (payloadOrId, expiresIn = null) => {
   const config = environmentConfig.getConfig();
-  
+
+  const payload = (typeof payloadOrId === 'object' && payloadOrId !== null)
+    ? { ...payloadOrId }
+    : { id: payloadOrId };
+
   return jwt.sign(
-    { id: userId },
+    payload,
     config.jwt.secret,
     { expiresIn: expiresIn || config.jwt.expiresIn }
   );
@@ -175,13 +180,24 @@ const generateToken = (userId, expiresIn = null) => {
 
 /**
  * Generate refresh token
- * @param {string} userId - User ID to encode
+ * Accepts either a userId string or a payload object (containing at least `id`).
+ * Refresh tokens include a `type: 'refresh'` claim to distinguish them.
+ * @param {string|object} payloadOrId - User ID or payload to encode
  */
-const generateRefreshToken = (userId) => {
+const generateRefreshToken = (payloadOrId) => {
   const config = environmentConfig.getConfig();
-  
+
+  const basePayload = (typeof payloadOrId === 'object' && payloadOrId !== null)
+    ? { ...payloadOrId }
+    : { id: payloadOrId };
+
+  const payload = {
+    ...basePayload,
+    type: 'refresh'
+  };
+
   return jwt.sign(
-    { id: userId, type: 'refresh' },
+    payload,
     config.jwt.secret,
     { expiresIn: config.jwt.refreshExpiresIn }
   );

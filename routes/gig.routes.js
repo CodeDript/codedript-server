@@ -30,7 +30,7 @@ router.get('/', gigController.getAllGigs);
  * @desc    Create new gig
  * @access  Private (Developer only)
  */
-router.post('/', authenticate, restrictTo('developer', 'both'), gigController.createGig);
+router.post('/', authenticate, restrictTo('developer', 'both'), upload.array('images', 5), gigController.createGig);
 
 /**
  * @route   GET /api/v1/gigs/:id

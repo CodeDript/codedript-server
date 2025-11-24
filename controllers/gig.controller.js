@@ -15,17 +15,76 @@ exports.createGig = catchAsync(async (req, res, next) => {
     return next(new AppError('Only developers can create gigs', 403));
   }
 
+  // Get the latest gigId and increment
+  const lastGig = await Gig.findOne().sort({ gigId: -1 });
+  const newGigId = lastGig ? lastGig.gigId + 1 : 1;
+
+  // Parse packages if sent as JSON string
+  let packages = req.body.packages;
+  if (typeof packages === 'string') {
+    try {
+      packages = JSON.parse(packages);
+    } catch (err) {
+      return next(new AppError('Invalid packages format', 400));
+    }
+  }
+
+  // Build gig data
   const gigData = {
-    ...req.body,
-    developer: req.user._id
+    developer: req.user._id,
+    gigId: newGigId,
+    title: req.body.title,
+    description: req.body.description,
+    category: req.body.category || 'other',
+    subcategory: req.body.subcategory,
+    receivingAddress: req.body.receivingAddress?.toLowerCase()?.trim(),
+    requirements: req.body.requirements,
+    packages: packages || [],
+    pricing: {
+      type: req.body.pricingType || 'fixed',
+      amount: parseFloat(req.body.pricingAmount) || 0,
+      currency: req.body.pricingCurrency || 'ETH'
+    },
+    deliveryTime: parseInt(req.body.deliveryTime) || 7,
+    revisions: parseInt(req.body.revisions) || 2,
+    tags: req.body.tags ? (Array.isArray(req.body.tags) ? req.body.tags : req.body.tags.split(',').map(t => t.trim())) : [],
+    status: req.body.status || 'active',
+    images: []
   };
 
+  // Handle image uploads if files are provided
+  if (req.files && req.files.length > 0) {
+    const supabaseService = require('../services/supabaseService');
+    
+    for (const file of req.files) {
+      try {
+        const uploadResult = await supabaseService.uploadGigImage(
+          file.buffer,
+          file.originalname,
+          newGigId.toString()
+        );
+        
+        if (uploadResult.success) {
+          gigData.images.push({
+            url: uploadResult.url,
+            publicId: uploadResult.publicId
+          });
+        }
+      } catch (uploadError) {
+        console.error('Error uploading gig image:', uploadError);
+        // Continue with other images even if one fails
+      }
+    }
+  }
+
+  // Create the gig
   const gig = await Gig.create(gigData);
 
   // Update user statistics
   await req.user.incrementStats('gigsPosted');
 
-  const populatedGig = await Gig.findById(gig._id).populate('developer', 'profile email reputation');
+  // Populate and return
+  const populatedGig = await Gig.findById(gig._id).populate('developer', 'profile email reputation walletAddress');
 
   sendCreatedResponse(res, 'Gig created successfully', populatedGig);
 });
@@ -40,23 +99,32 @@ exports.getAllGigs = catchAsync(async (req, res, next) => {
   const limit = parseInt(req.query.limit) || 10;
   const skip = (page - 1) * limit;
 
-  const { category, minPrice, maxPrice, skills, deliveryTime, status } = req.query;
+  const { category, minPrice, maxPrice, deliveryTime, status, sortBy, sortOrder, developer, includeInactive } = req.query;
 
-  const filter = { isActive: true };
+  // Build base filter. If a developer query is provided, restrict to that developer
+  // and allow optionally including inactive gigs via `includeInactive=true`.
+  let filter = {};
 
-  if (status) {
-    filter.status = status;
+  if (developer) {
+    filter.developer = developer;
+    if (status) {
+      filter.status = status;
+    } else if (includeInactive !== 'true') {
+      // default to active for non-owner/public requests
+      filter.status = 'active';
+    }
   } else {
-    filter.status = 'active';
+    // Public listing defaults to active only and isActive true
+    filter.isActive = true;
+    if (status) {
+      filter.status = status;
+    } else {
+      filter.status = 'active';
+    }
   }
 
   if (category && category !== 'all') {
     filter.category = category;
-  }
-
-  if (skills) {
-    const skillArray = skills.split(',').map(s => s.trim());
-    filter.skills = { $in: skillArray };
   }
 
   if (minPrice || maxPrice) {
@@ -69,12 +137,43 @@ exports.getAllGigs = catchAsync(async (req, res, next) => {
     filter.deliveryTime = { $lte: parseInt(deliveryTime) };
   }
 
+  // Determine sort field and order
+  let sortField = 'createdAt';
+  let sortDirection = -1;
+
+  if (sortBy) {
+    switch(sortBy) {
+      case 'rating':
+        sortField = 'rating.average';
+        break;
+      case 'views':
+        sortField = 'statistics.views';
+        break;
+      case 'createdAt':
+      default:
+        sortField = 'createdAt';
+        break;
+    }
+  }
+
+  if (sortOrder && sortOrder === 'asc') {
+    sortDirection = 1;
+  }
+
+  const sortOptions = {};
+  sortOptions[sortField] = sortDirection;
+  
+  // Add secondary sort by rating count for rating sort, or by createdAt for others
+  if (sortBy === 'rating') {
+    sortOptions['rating.count'] = sortDirection;
+  }
+
   const [gigs, total] = await Promise.all([
     Gig.find(filter)
-      .populate('developer', 'profile email reputation')
+      .populate('developer', 'profile email reputation walletAddress createdAt')
       .skip(skip)
       .limit(limit)
-      .sort({ createdAt: -1 }),
+      .sort(sortOptions),
     Gig.countDocuments(filter)
   ]);
 
@@ -88,7 +187,7 @@ exports.getAllGigs = catchAsync(async (req, res, next) => {
  */
 exports.getGigById = catchAsync(async (req, res, next) => {
   const gig = await Gig.findById(req.params.id)
-    .populate('developer', 'profile email reputation statistics');
+    .populate('developer', 'profile email reputation statistics walletAddress createdAt');
 
   if (!gig) {
     return next(new AppError('Gig not found', 404));
