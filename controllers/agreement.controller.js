@@ -12,7 +12,7 @@ const User = require('../models/User');
  * @access Private
  */
 exports.createAgreement = catchAsync(async (req, res, next) => {
-  const { developerId, gigId, project, financials, milestones, terms } = req.body;
+  const { agreementId, developerId, gigId, project, financials, milestones, terms } = req.body;
 
   // Verify developer exists
   const developer = await User.findById(developerId);
@@ -24,8 +24,12 @@ exports.createAgreement = catchAsync(async (req, res, next) => {
     return next(new AppError('Selected user is not a developer', 400));
   }
 
+  // Auto-generate agreementId if not provided
+  const generatedAgreementId = agreementId || `AGR-${Date.now()}-${Math.random().toString(36).substr(2, 6).toUpperCase()}`;
+
   // Create agreement
   const agreementData = {
+    agreementId: generatedAgreementId,
     client: req.user._id,
     developer: developerId,
     gig: gigId || undefined,

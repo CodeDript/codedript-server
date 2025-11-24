@@ -52,19 +52,36 @@ exports.register = catchAsync(async (req, res, next) => {
 });
 
 /**
- * Login with wallet address
+ * Login with email or wallet address
  * @route POST /api/v1/auth/login
  * @access Public
  */
 exports.login = catchAsync(async (req, res, next) => {
-  const { walletAddress, signature } = req.body;
+  const { email, walletAddress, signature } = req.body;
 
-  if (!walletAddress) {
-    return next(new AppError('Wallet address is required', 400));
+  // Validate that at least one identifier is provided
+  if (!email && !walletAddress) {
+    return next(new AppError('Email or wallet address is required', 400));
   }
 
-  // Find user by wallet address
-  const user = await User.findByWallet(walletAddress);
+  let user;
+
+  // Find user by email or wallet address
+  if (email && walletAddress) {
+    // If both provided, search for either
+    user = await User.findOne({
+      $or: [
+        { email: email.toLowerCase() },
+        { walletAddress: walletAddress.toUpperCase() }
+      ]
+    });
+  } else if (email) {
+    // Find by email
+    user = await User.findOne({ email: email.toLowerCase() });
+  } else {
+    // Find by wallet address
+    user = await User.findByWallet(walletAddress);
+  }
 
   if (!user) {
     return next(new AppError('User not found. Please register first.', 404));

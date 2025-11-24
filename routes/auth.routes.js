@@ -12,7 +12,7 @@ router.post('/register', authController.register);
 
 /**
  * @route   POST /api/v1/auth/login
- * @desc    Login with wallet address
+ * @desc    Login with email or wallet address
  * @access  Public
  */
 router.post('/login', authController.login);

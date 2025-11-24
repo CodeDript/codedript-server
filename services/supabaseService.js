@@ -287,4 +287,52 @@ class SupabaseService {
   }
 }
 
-module.exports = new SupabaseService();
+const supabaseServiceInstance = new SupabaseService();
+
+/**
+ * Generic upload wrapper for consistency with other controllers
+ * @param {object} file - Multer file object
+ * @param {string} folder - Folder to upload to
+ */
+async function uploadToSupabase(file, folder) {
+  try {
+    const fileName = generateFileName(file.originalname, `${folder}-${Date.now()}`);
+    const result = await supabaseConfig.uploadFile(
+      file.buffer,
+      fileName,
+      folder,
+      file.mimetype
+    );
+    
+    return result.publicUrl;
+  } catch (error) {
+    console.error('Error uploading to Supabase:', error);
+    throw new AppError('Failed to upload file', 500);
+  }
+}
+
+/**
+ * Delete file wrapper
+ * @param {string} fileUrl - File URL to delete
+ */
+async function deleteFromSupabase(fileUrl) {
+  try {
+    // Extract file path from URL
+    const urlParts = fileUrl.split('/');
+    const bucketIndex = urlParts.indexOf('object');
+    if (bucketIndex === -1) {
+      throw new Error('Invalid file URL');
+    }
+    const filePath = urlParts.slice(bucketIndex + 3).join('/');
+    
+    await supabaseConfig.deleteFile(filePath);
+    return { success: true };
+  } catch (error) {
+    console.error('Error deleting from Supabase:', error);
+    throw new AppError('Failed to delete file', 500);
+  }
+}
+
+module.exports = supabaseServiceInstance;
+module.exports.uploadToSupabase = uploadToSupabase;
+module.exports.deleteFromSupabase = deleteFromSupabase;

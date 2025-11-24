@@ -24,6 +24,7 @@ const gigRoutes = require('./routes/gig.routes');
 const agreementRoutes = require('./routes/agreement.routes');
 const milestoneRoutes = require('./routes/milestone.routes');
 const transactionRoutes = require('./routes/transaction.routes');
+const chatRoutes = require('./routes/chat.routes');
 
 /**
  * Initialize Express Application
@@ -151,6 +152,7 @@ app.use(`${API_PREFIX}/gigs`, gigRoutes);
 app.use(`${API_PREFIX}/agreements`, agreementRoutes);
 app.use(`${API_PREFIX}/milestones`, milestoneRoutes);
 app.use(`${API_PREFIX}/transactions`, transactionRoutes);
+app.use(`${API_PREFIX}/chats`, chatRoutes);
 
 /**
  * 404 Handler - Route Not Found

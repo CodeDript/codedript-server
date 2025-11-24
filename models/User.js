@@ -16,7 +16,7 @@ const userSchema = new mongoose.Schema({
     unique: true,
     uppercase: true,
     trim: true,
-    match: [/^0x[a-fA-F0-9]{40}$/, 'Please enter a valid Ethereum wallet address']
+    match: [/^0X[A-F0-9]{40}$/, 'Please enter a valid Ethereum wallet address']
   },
   role: {
     type: String,
