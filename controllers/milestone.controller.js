@@ -302,20 +302,65 @@ exports.uploadMilestoneFiles = catchAsync(async (req, res, next) => {
     return next(new AppError('Please upload at least one file', 400));
   }
 
-  const uploadPromises = req.files.map(file => uploadToSupabase(file, 'milestone-files'));
-  const urls = await Promise.all(uploadPromises);
+  const pinataService = require('../services/pinataService');
+  const supabaseService = require('../services/supabaseService');
+  
+  const uploadedFiles = [];
 
-  const files = urls.map((url, index) => ({
-    name: req.files[index].originalname,
-    url,
-    uploadedAt: new Date()
-  }));
+  // Upload to both IPFS (Pinata) and Supabase
+  for (const file of req.files) {
+    try {
+      console.log(`📤 Uploading ${file.originalname} to IPFS and Supabase...`);
+      
+      // Upload to Pinata (IPFS)
+      const ipfsResult = await pinataService.uploadFile(
+        file.buffer,
+        file.originalname,
+        { mimeType: file.mimetype }
+      );
+      
+      // Upload to Supabase as backup
+      const supabaseResult = await supabaseService.uploadMilestoneFile(
+        file.buffer,
+        file.originalname,
+        milestone._id.toString(),
+        agreement._id.toString()
+      );
 
-  milestone.submission.files.push(...files);
+      uploadedFiles.push({
+        name: file.originalname,
+        url: supabaseResult.url,
+        ipfsHash: ipfsResult.ipfsHash,
+        supabaseId: supabaseResult.supabaseId,
+        uploadedAt: new Date()
+      });
+
+      console.log(`✅ ${file.originalname} uploaded - IPFS: ${ipfsResult.ipfsHash}`);
+    } catch (uploadError) {
+      console.error(`❌ Error uploading ${file.originalname}:`, uploadError);
+      // Continue with other files even if one fails
+    }
+  }
+
+  if (uploadedFiles.length === 0) {
+    return next(new AppError('All file uploads failed', 500));
+  }
+
+  // Add to demoFiles array (which includes IPFS hash)
+  if (!milestone.submission.demoFiles) {
+    milestone.submission.demoFiles = [];
+  }
+  
+  milestone.submission.demoFiles.push(...uploadedFiles);
+  milestone.submission.submittedBy = req.user._id;
+  milestone.submission.submittedAt = milestone.submission.submittedAt || new Date();
+  
   await milestone.save();
 
   sendSuccessResponse(res, 200, 'Files uploaded successfully', {
-    files: milestone.submission.files
+    files: milestone.submission.demoFiles,
+    uploadedCount: uploadedFiles.length,
+    totalFiles: req.files.length
   });
 });
 

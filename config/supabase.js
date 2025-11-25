@@ -96,7 +96,7 @@ class SupabaseConfig {
 
         if (!bucketExists) {
           const { data, error } = await this.client.storage.createBucket(this.bucketName, {
-            public: false,
+            public: true,
             fileSizeLimit: 52428800, // 50MB
             allowedMimeTypes: [
               'application/pdf',
