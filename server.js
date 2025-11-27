@@ -4,29 +4,22 @@ const morgan = require('morgan');
 const helmet = require('helmet');
 const compression = require('compression');
 const mongoSanitize = require('express-mongo-sanitize');
-const rateLimit = require('express-rate-limit');
 
 // Configuration
-const environmentConfig = require('./config/environment');
-const databaseConfig = require('./config/database');
+const environmentConfig = require('./src/config/environment');
+const databaseConfig = require('./src/config/database');
 
 // Utilities
-const { sendSuccessResponse } = require('./utils/responseHandler');
+const logger = require('./src/utils/logger');
+const { sendSuccessResponse } = require('./src/utils/responseHandler');
 
-// Middlewares
-const { errorHandler, notFound, handleUnhandledRejection, handleUncaughtException } = require('./middlewares/errorHandler');
-const { sanitizeInput } = require('./middlewares/validation');
-
-// Routes
-const authRoutes = require('./routes/auth.routes');
-const userRoutes = require('./routes/user.routes');
-const gigRoutes = require('./routes/gig.routes');
-const agreementRoutes = require('./routes/agreement.routes');
-const milestoneRoutes = require('./routes/milestone.routes');
-const transactionRoutes = require('./routes/transaction.routes');
-const reviewRoutes = require('./routes/review.routes');
-const uploadRoutes = require('./routes/upload.routes');
-const changeRequestRoutes = require('./routes/changeRequest.routes');
+// Middleware
+const { 
+  errorHandler, 
+  notFound, 
+  handleUnhandledRejection, 
+  handleUncaughtException 
+} = require('./src/utils/errorHandler');
 
 /**
  * Initialize Express Application
@@ -39,14 +32,14 @@ const app = express();
 const config = environmentConfig.getConfig();
 
 /**
- * Handle Uncaught Exceptions
+ * Handle Uncaught Exceptions and Unhandled Rejections
  */
 handleUncaughtException();
+handleUnhandledRejection();
 
 /**
  * Security Middleware
  */
-// Helmet helps secure Express apps by setting various HTTP headers
 app.use(helmet({
   contentSecurityPolicy: config.isProduction ? undefined : false,
   crossOriginEmbedderPolicy: false
@@ -54,21 +47,6 @@ app.use(helmet({
 
 // CORS configuration
 app.use(cors(config.cors));
-
-/**
- * Rate Limiting
- */
-if (config.features.enableRateLimiting) {
-  const limiter = rateLimit({
-    windowMs: config.rateLimit.windowMs,
-    max: config.rateLimit.max,
-    message: 'Too many requests from this IP, please try again later.',
-    standardHeaders: true,
-    legacyHeaders: false
-  });
-
-  app.use('/api/', limiter);
-}
 
 /**
  * Body Parser Middleware
@@ -79,11 +57,7 @@ app.use(express.urlencoded({ extended: true, limit: '10mb' }));
 /**
  * Data Sanitization
  */
-// Sanitize data against NoSQL query injection
 app.use(mongoSanitize());
-
-// Custom sanitization
-app.use(sanitizeInput);
 
 /**
  * Compression Middleware
@@ -100,63 +74,51 @@ if (config.isDevelopment) {
 }
 
 /**
+ * Request ID Middleware
+ */
+app.use((req, res, next) => {
+  req.id = Math.random().toString(36).substring(7);
+  next();
+});
+
+/**
  * Health Check Endpoint
  */
 app.get('/health', async (req, res) => {
   const dbStatus = await databaseConfig.healthCheck();
   
-  sendSuccessResponse(
-    res,
-    200,
-    'Server is healthy',
-    {
-      environment: config.env,
-      services: {
-        api: 'operational',
-        database: dbStatus.status
-      }
+  sendSuccessResponse(res, 200, 'Server is healthy', {
+    environment: config.env,
+    timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    services: {
+      api: 'operational',
+      database: dbStatus.status
     }
-  );
+  });
 });
 
 /**
  * API Information Endpoint
  */
 app.get('/api', (req, res) => {
-  sendSuccessResponse(
-    res,
-    200,
-    'CodeDript API',
-    {
-      version: config.server.apiVersion,
-      documentation: `${config.server.baseUrl}/api/docs`,
-      endpoints: {
-        health: '/health',
-        auth: '/api/auth',
-        users: '/api/users',
-        gigs: '/api/gigs',
-        agreements: '/api/agreements',
-        milestones: '/api/milestones',
-        transactions: '/api/transactions'
-      }
+  sendSuccessResponse(res, 200, 'CodeDript API', {
+    version: config.server.apiVersion,
+    documentation: `${config.server.baseUrl}/api/docs`,
+    endpoints: {
+      health: '/health',
+      api: '/api'
     }
-  );
+  });
 });
 
 /**
- * API Routes
+ * API Routes Prefix
  */
 const API_PREFIX = `/api/${config.server.apiVersion}`;
 
-app.use(`${API_PREFIX}/auth`, authRoutes);
-app.use(`${API_PREFIX}/users`, userRoutes);
-app.use(`${API_PREFIX}/gigs`, gigRoutes);
-app.use(`${API_PREFIX}/agreements`, agreementRoutes);
-app.use(`${API_PREFIX}/milestones`, milestoneRoutes);
-app.use(`${API_PREFIX}/transactions`, transactionRoutes);
-app.use(`${API_PREFIX}/reviews`, reviewRoutes);
-app.use(`${API_PREFIX}/upload`, uploadRoutes);
-app.use(`${API_PREFIX}/change-requests`, changeRequestRoutes);
+// Add your routes here
+// Example: app.use(`${API_PREFIX}/users`, userRoutes);
 
 /**
  * 404 Handler - Route Not Found
@@ -169,56 +131,48 @@ app.use(notFound);
 app.use(errorHandler);
 
 /**
- * Handle Unhandled Promise Rejections
- */
-handleUnhandledRejection();
-
-/**
  * Start Server
  */
 const startServer = async () => {
   try {
-    // Start listening first so we can print startup status immediately
     const PORT = config.server.port;
     const server = app.listen(PORT, () => {
-      // Print only minimal startup info (server + connections)
       (async () => {
         try {
           const url = config.server.baseUrl || `http://localhost:${PORT}`;
           await environmentConfig.printStartupMinimal({ url });
         } catch (e) {
-          // If status printing fails, fall back to a single line
-          console.log(`Server started on port ${PORT}`);
+          logger.info(`Server started on port ${PORT}`);
         }
       })();
     });
 
-    // Connect to the database in background (do not block server startup)
+    // Connect to the database in background
     databaseConfig.connect().catch(() => {
-      // silent: connection errors are reported by the environment status checker
+      logger.warn('Database connection failed during startup');
     });
 
     // Graceful shutdown
     const gracefulShutdown = async (signal) => {
-      
+      logger.info(`${signal} received, shutting down gracefully...`);
       
       server.close(async () => {
-        console.log('✅ HTTP server closed');
+        logger.info('HTTP server closed');
         
         try {
           await databaseConfig.disconnect();
-          console.log('✅ Database connection closed');
-          console.log('👋 Goodbye!');
+          logger.info('Database connection closed');
+          logger.info('Goodbye!');
           process.exit(0);
         } catch (error) {
-          console.error('❌ Error during shutdown:', error);
+          logger.error('Error during shutdown', { error: error.message });
           process.exit(1);
         }
       });
 
       // Force shutdown after 10 seconds
       setTimeout(() => {
-        console.error('⚠️  Forced shutdown after timeout');
+        logger.error('Forced shutdown after timeout');
         process.exit(1);
       }, 10000);
     };
@@ -227,7 +181,7 @@ const startServer = async () => {
     process.on('SIGINT', () => gracefulShutdown('SIGINT'));
 
   } catch (error) {
-    console.error('💥 Failed to start server:', error);
+    logger.error('Failed to start server', { error: error.message });
     process.exit(1);
   }
 };

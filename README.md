@@ -1,31 +1,56 @@
-# CodeDript Server
+# CodeDript Server - Clean Foundation
 
-Backend API for CodeDript - A Web3-powered agreement management platform connecting developers and clients.
+This is a clean, minimal foundation for the CodeDript API server with only essential configurations.
 
-## Overview
+## What's Included
 
-CodeDript Server provides RESTful APIs for managing agreements, gigs, milestones, and transactions between developers and clients with Web3 integration.
+- ✅ MongoDB configuration and connection
+- ✅ Supabase configuration and client
+- ✅ Pinata file upload service
+- ✅ Basic Express server setup with security middleware
+- ✅ Environment configuration
 
-## Tech Stack
+## Structure
 
-- **Runtime:** Node.js 18+
-- **Framework:** Express.js
-- **Database:** MongoDB with Mongoose ODM
-- **File Storage:** Supabase Storage
-- **Authentication:** JWT + Ethereum wallet verification
-
-## Quick Start
-
-```bash
-npm install
-cp .env.example .env
-npm run dev
+```
+src/
+├── config/
+│   ├── database.js       # MongoDB configuration
+│   ├── supabase.js       # Supabase client setup
+│   └── environment.js    # Environment variables
+├── services/
+│   └── pinataService.js  # Pinata IPFS file upload
+├── models/               # Empty - ready for your models
+├── controllers/          # Empty - ready for your controllers
+├── routes/               # Empty - ready for your routes
+├── middlewares/          # Empty - ready for your middleware
+├── utils/                # Empty - ready for your utilities
+└── server.js             # Main server file
 ```
 
-## Documentation
+## Getting Started
 
-📖 **See DEV_DOCUMENT.md for complete development guide**
+1. Install dependencies:
+   ```bash
+   npm install
+   ```
 
----
+2. Configure your `.env` file with:
+   - MongoDB connection string
+   - Supabase credentials
+   - Pinata JWT token
 
-**Built for Web3 Development**
+3. Start the server:
+   ```bash
+   npm run dev
+   ```
+
+## Next Steps
+
+You can now start building your API from scratch with a clean, organized structure!
+
+- Create models in `src/models/`
+- Create controllers in `src/controllers/`
+- Create routes in `src/routes/`
+- Add middleware in `src/middlewares/`
+- Add utilities in `src/utils/`
