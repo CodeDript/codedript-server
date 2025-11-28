@@ -1,204 +1,211 @@
-# Models Module
+# CodeDript Models Documentation
 
-This directory contains Mongoose schemas and models that define the data structure and business logic for the CodeDript application.
+This directory contains all Mongoose models for the CodeDript agreement manager system.
 
-## Overview
+## Models Overview
 
-Models represent the data layer of the application and are responsible for:
+### 1. User Model (`User.js`)
 
-- Defining database schemas
-- Data validation
-- Business logic related to data
-- Database operations (CRUD)
-- Virtual properties and methods
-- Pre/post hooks for lifecycle events
+Manages user accounts for both clients and developers with Web3 wallet integration.
 
-## Core Models
+**Key Features:**
 
-### `User.js`
+- Wallet address authentication (MetaMask)
+- Email-based login with OTP verification
+- Role-based access (client/developer)
+- User statistics tracking (gigs, earnings, spending)
+- Profile completeness virtual field
 
-User account management:
+**Fields:**
 
-- User profile information
-- Authentication credentials
-- Role-based access control (admin, developer, client)
-- Profile settings and preferences
-- Account status and verification
+- `walletAddress` - Ethereum wallet address (unique, indexed)
+- `email` - User email (unique, validated)
+- `fullname` - User's full name
+- `role` - Either 'client' or 'developer'
+- `bio` - User biography (max 500 chars)
+- `firstLogin` - Boolean flag for first-time users
+- `skills` - Array of skill strings
+- `OTP` - Object containing OTP code and expiration
+- `avatar` - Profile picture URL
+- `statistics` - Object with totalGigs, completedAgreements, totalEarned, totalSpent
+- `isActive` - Account status
+- `lastLogin` - Last login timestamp
 
-### `Gig.js`
+---
 
-Project/service listings:
+### 2. Gig Model (`Gig.js`)
 
-- Gig details and descriptions
-- Pricing and delivery time
-- Categories and tags
-- Developer portfolio items
-- Status tracking
+Represents services offered by developers.
 
-### `Agreement.js`
+**Key Features:**
 
-Contract and agreement management:
+- Auto-incrementing gigID (001, 002, etc.)
+- Multiple package tiers (basic, standard, premium)
+- Portfolio showcase with completed projects
+- Price range virtual field
 
-- Agreement terms and conditions
-- Milestone definitions
-- Payment schedules
-- Status workflow (draft, pending, active, completed, cancelled)
-- Party signatures and acceptance
-- Dispute handling
+**Fields:**
 
-### `Review.js`
+- `developer` - Reference to User model
+- `title` - Gig title (max 100 chars)
+- `description` - Detailed description (max 2000 chars)
+- `gigID` - Auto-generated unique ID (e.g., "001")
+- `images` - Array of image URLs
+- `completedProjects` - Array of portfolio links
+- `packages` - Array of package objects (1-3 packages)
+  - `name` - 'basic', 'standard', or 'premium'
+  - `price` - Package price
+  - `deliveryTime` - Delivery time in days
+  - `features` - Array of feature strings
+  - `description` - Package description
+- `isActive` - Gig visibility status
 
-Rating and review system:
+---
 
-- User reviews and ratings
-- Review content and timestamps
-- Rating calculations
-- Review moderation
+### 3. Review Model (`Review.js`)
 
-### Additional Models
+Manages reviews and ratings for gigs and users.
 
-- **Transaction** - Payment and escrow transactions
-- **Milestone** - Agreement milestone tracking
-- **Message** - Communication between users
-- **Notification** - User notifications
-- **Dispute** - Dispute resolution
+**Key Features:**
 
-## Schema Pattern
+- 1-5 star rating system
+- Prevents duplicate reviews (one review per gig per user)
+- Helper methods for calculating average ratings
+- Validation to prevent self-reviews
 
-```javascript
-const mongoose = require("mongoose");
+**Fields:**
 
-const exampleSchema = new mongoose.Schema(
-  {
-    // Field definitions
-    fieldName: {
-      type: String,
-      required: [true, "Error message"],
-      unique: true,
-      trim: true,
-      maxlength: [100, "Max length error"],
-      validate: {
-        validator: function (v) {
-          /* validation logic */
-        },
-        message: "Validation error message",
-      },
-    },
-  },
-  {
-    timestamps: true, // Adds createdAt and updatedAt
-    toJSON: { virtuals: true },
-    toObject: { virtuals: true },
-  }
-);
+- `gig` - Reference to Gig model
+- `reviewer` - Reference to User who wrote the review
+- `reviewee` - Reference to User being reviewed
+- `rating` - Number between 1-5
+- `comment` - Review text (max 1000 chars)
+- `createdOn` - Review creation date
 
-// Indexes
-exampleSchema.index({ fieldName: 1 });
+**Static Methods:**
 
-// Virtual properties
-exampleSchema.virtual("virtualField").get(function () {
-  return this.field1 + this.field2;
-});
+- `getAverageRating(gigId)` - Calculate average rating for a gig
+- `getUserAverageRating(userId)` - Calculate average rating for a user
 
-// Instance methods
-exampleSchema.methods.instanceMethod = function () {
-  // Method logic
-};
+---
 
-// Static methods
-exampleSchema.statics.staticMethod = function () {
-  // Static method logic
-};
+### 4. Agreement Model (`Agreement.js`)
 
-// Middleware hooks
-exampleSchema.pre("save", function (next) {
-  // Pre-save logic
-  next();
-});
+Core model for managing contracts between clients and developers.
 
-module.exports = mongoose.model("Example", exampleSchema);
-```
+**Key Features:**
 
-## Common Schema Features
+- Auto-incrementing agreementID
+- Milestone-based project tracking
+- Blockchain integration (Ethereum/Polygon)
+- IPFS document storage
+- Digital signatures from both parties
+- Change request management
+- Financial tracking with escrow support
 
-### 1. Timestamps
+**Fields:**
 
-```javascript
-{
-  timestamps: true;
-} // Automatically adds createdAt and updatedAt
-```
+- `agreementID` - Auto-generated unique ID (e.g., "001")
+- `client` - Reference to client User
+- `clientInfo` - Snapshot of client info (name, email, walletAddress)
+- `developer` - Reference to developer User
+- `gig` - Reference to associated Gig
+- `title` - Agreement title
+- `description` - Project description
+- `status` - Current status (pending, active, in-progress, completed, etc.)
+- `deliverables` - Array of final deliverable files
+- `startDate` - Project start date
+- `endDate` - Project end date
+- `financials` - Object containing:
+  - `totalValue` - Total project cost
+  - `releasedAmount` - Amount released to developer
+  - `remainingAmount` - Amount still in escrow
+  - `currency` - Payment currency (default: ETH)
+- `documents` - Array of IPFS documents
+- `milestones` - Array of milestone objects:
+  - `name` - Milestone name
+  - `description` - Milestone description
+  - `price` - Milestone payment amount
+  - `status` - pending, inProgress, completed, approved
+  - `previews` - Array of preview files with IPFS hashes
+  - `completedAt` - Completion timestamp
+  - `approvedAt` - Approval timestamp
+- `signatures` - Object containing signature data for both parties
+- `blockchain` - Object containing:
+  - `contractAddress` - Smart contract address
+  - `transactionHash` - Transaction hash
+  - `blockNumber` - Block number
+  - `network` - Blockchain network (ethereum, polygon, etc.)
+- `changeRequests` - Array of change request objects
 
-### 2. References
+**Virtual Fields:**
 
-```javascript
-user: {
-  type: mongoose.Schema.Types.ObjectId,
-  ref: 'User',
-  required: true
-}
-```
+- `progressPercentage` - Calculated project completion percentage
+- `isFullySigned` - Boolean indicating if both parties signed
+- `totalMilestoneValue` - Sum of all milestone prices
 
-### 3. Enums
+**Static Methods:**
 
-```javascript
-status: {
-  type: String,
-  enum: ['pending', 'active', 'completed'],
-  default: 'pending'
-}
-```
+- `getByStatus(status, userId)` - Get agreements by status, optionally filtered by user
 
-### 4. Subdocuments
-
-```javascript
-milestones: [
-  {
-    title: String,
-    amount: Number,
-    dueDate: Date,
-  },
-];
-```
-
-## Best Practices
-
-1. **Validation** - Define validation rules at the schema level
-2. **Indexes** - Add indexes for frequently queried fields
-3. **Virtuals** - Use virtual properties for computed fields
-4. **Methods** - Put business logic in instance/static methods
-5. **Hooks** - Use pre/post hooks for lifecycle events
-6. **References** - Use references for relationships between models
-7. **Lean queries** - Use `.lean()` for read-only operations (better performance)
-8. **Select fields** - Only select needed fields to reduce data transfer
+---
 
 ## Usage Example
 
 ```javascript
-const User = require("../models/User");
+// Import models
+const { User, Gig, Review, Agreement } = require("./models");
 
-// Create
+// Create a new user
 const user = await User.create({
-  name: "John Doe",
-  email: "john@example.com",
+  walletAddress: "0x1234...",
+  email: "developer@example.com",
+  fullname: "John Doe",
   role: "developer",
 });
 
-// Read
-const users = await User.find({ role: "developer" })
-  .select("name email")
-  .limit(10)
-  .sort("-createdAt");
+// Create a gig
+const gig = await Gig.create({
+  developer: user._id,
+  title: "Full Stack Web Development",
+  description: "I will build your web application",
+  packages: [
+    {
+      name: "basic",
+      price: 500,
+      deliveryTime: 7,
+      features: ["Responsive Design", "5 Pages"],
+      description: "Basic package",
+    },
+  ],
+});
 
-// Update
-await User.findByIdAndUpdate(userId, { name: "Jane Doe" }, { new: true });
-
-// Delete
-await User.findByIdAndDelete(userId);
+// Create an agreement
+const agreement = await Agreement.create({
+  client: clientUser._id,
+  clientInfo: {
+    name: clientUser.fullname,
+    email: clientUser.email,
+    walletAddress: clientUser.walletAddress,
+  },
+  developer: user._id,
+  gig: gig._id,
+  title: "E-commerce Website",
+  description: "Build a complete e-commerce platform",
+  financials: {
+    totalValue: 1500,
+  },
+});
 ```
 
-## Related Modules
+## Indexes
 
-- **Controllers** (`../controllers`) - Use models to perform database operations
-- **Services** (`../services`) - Business logic layer that uses models
-- **Config/database** (`../config/database`) - Database connection setup
+All models include optimized indexes for:
+
+- Unique constraints (walletAddress, email, gigID, agreementID)
+- Query performance (role, status, dates)
+- Relationship lookups (foreign keys)
+
+## Timestamps
+
+All models automatically include `createdAt` and `updatedAt` timestamps via Mongoose timestamps option.
