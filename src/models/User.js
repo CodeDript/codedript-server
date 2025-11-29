@@ -88,6 +88,11 @@ const userSchema = new mongoose.Schema(
       type: Date,
       default: Date.now,
     },
+    memberSince: {
+      type: Date,
+      default: Date.now,
+      immutable: true, // Cannot be changed after creation
+    },
   },
   {
     timestamps: true,
