@@ -1,0 +1,160 @@
+### CodeDript Test User API Testing
+### This file tests all utilities, middlewares, and config files
+
+@baseUrl = http://localhost:5000/api
+@token = YOUR_JWT_TOKEN_HERE
+
+### Health Check
+GET {{baseUrl}}/health
+
+###############################################
+# Test User CRUD Operations
+###############################################
+
+### 1. Create Test User (Tests: validation, sanitizeInput, modelValidators, errorHandler, responseHandler, logger, constants)
+POST {{baseUrl}}/test-users
+Content-Type: application/json
+
+{
+  "username": "johndoe",
+  "email": "john.doe@example.com",
+  "walletAddress": "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb1",
+  "role": "developer",
+  "bio": "Full-stack blockchain developer",
+  "skills": ["Solidity", "React", "Node.js"],
+  "rating": 4.5
+}
+
+### 2. Create Test User with Invalid Wallet (Tests: modelValidators validation)
+POST {{baseUrl}}/test-users
+Content-Type: application/json
+
+{
+  "username": "invaliduser",
+  "email": "invalid@example.com",
+  "walletAddress": "invalid-wallet-address",
+  "role": "client"
+}
+
+### 3. Create Test User with Invalid Role (Tests: enum validation)
+POST {{baseUrl}}/test-users
+Content-Type: application/json
+
+{
+  "username": "baduser",
+  "email": "bad@example.com",
+  "walletAddress": "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb2",
+  "role": "admin"
+}
+
+### 4. Create Test User with Invalid Rating (Tests: rating validation)
+POST {{baseUrl}}/test-users
+Content-Type: application/json
+
+{
+  "username": "ratingtest",
+  "email": "rating@example.com",
+  "walletAddress": "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb3",
+  "rating": 6
+}
+
+### 5. Get All Test Users (Tests: optionalAuth, pagination helpers, responseHandler)
+GET {{baseUrl}}/test-users?page=1&limit=10
+
+### 6. Get All Test Users with Search (Tests: query parsing)
+GET {{baseUrl}}/test-users?search=john&role=developer
+
+### 7. Get All Test Users - Protected (Tests: auth middleware)
+GET {{baseUrl}}/test-users
+Authorization: Bearer {{token}}
+
+### 8. Get Single Test User (Tests: protect middleware, ObjectId validation, NotFoundError)
+GET {{baseUrl}}/test-users/507f1f77bcf86cd799439011
+Authorization: Bearer {{token}}
+
+### 9. Get Test User with Invalid ID (Tests: ObjectId validation)
+GET {{baseUrl}}/test-users/invalid-id
+Authorization: Bearer {{token}}
+
+### 10. Update Test User (Tests: protect, validation, helpers.pick, sanitizeInput)
+PUT {{baseUrl}}/test-users/507f1f77bcf86cd799439011
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "bio": "Updated bio for testing",
+  "skills": ["Solidity", "React", "Node.js", "TypeScript"],
+  "rating": 5,
+  "ipfsData": "QmYwAPJzv5CZsnA625s3Xf2nemtYgPpHdWEz79ojWnPbdG"
+}
+
+### 11. Update Test User with Invalid IPFS Hash (Tests: IPFS hash validation)
+PUT {{baseUrl}}/test-users/507f1f77bcf86cd799439011
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "ipfsData": "invalid-ipfs-hash"
+}
+
+### 12. Delete Test User (Tests: protect, restrictTo middleware for developer role only)
+DELETE {{baseUrl}}/test-users/507f1f77bcf86cd799439011
+Authorization: Bearer {{token}}
+
+### 13. Record Login (Tests: protect, pre-save middleware, timestamp updates)
+POST {{baseUrl}}/test-users/507f1f77bcf86cd799439011/login
+Authorization: Bearer {{token}}
+
+### 14. Get Statistics (Tests: protect, aggregation, responseHandler)
+GET {{baseUrl}}/test-users/stats
+Authorization: Bearer {{token}}
+
+###############################################
+# Error Scenarios
+###############################################
+
+### 15. Duplicate User (Tests: ConflictError, error handling)
+POST {{baseUrl}}/test-users
+Content-Type: application/json
+
+{
+  "username": "johndoe",
+  "email": "john.doe@example.com",
+  "walletAddress": "0x742d35Cc6634C0532925a3b844Bc9e7595f0bEb1",
+  "role": "client"
+}
+
+### 16. Missing Required Fields (Tests: ValidationError, isEmpty helper)
+POST {{baseUrl}}/test-users
+Content-Type: application/json
+
+{
+  "username": "incomplete"
+}
+
+### 17. Unauthorized Access (Tests: AuthenticationError from protect middleware)
+GET {{baseUrl}}/test-users/507f1f77bcf86cd799439011
+
+### 18. Forbidden Access - Delete without developer role (Tests: AuthorizationError from restrictTo)
+DELETE {{baseUrl}}/test-users/507f1f77bcf86cd799439011
+Authorization: Bearer {{token}}
+
+###############################################
+# Utilities Testing Summary
+###############################################
+
+# ✅ Config Files Tested:
+# - constants.js: USER_ROLES, HTTP_STATUS, ERROR_MESSAGES, SUCCESS_MESSAGES, PAGINATION
+# - database.js: Used implicitly through mongoose models
+# - environment.js: Used implicitly for config values
+
+# ✅ Middlewares Tested:
+# - auth.js: protect, restrictTo, optionalAuth
+# - validation.js: validate, sanitizeInput, requireFields
+
+# ✅ Utils Tested:
+# - errorHandler.js: catchAsync, ValidationError, NotFoundError, ConflictError
+# - responseHandler.js: sendSuccess, sendError, sendPaginated
+# - logger.js: logger.info, logger.warn, logger.error
+# - helpers.js: isEmpty, sanitizeObject, pick, parsePagination, isValidEmail, generateRandomString
+# - modelValidators.js: isValidUserRole, isValidWalletAddress, isValidObjectId, isValidRating, isValidIpfsHash

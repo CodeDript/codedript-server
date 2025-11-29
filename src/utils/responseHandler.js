@@ -10,7 +10,7 @@ const sendSuccessResponse = (res, statusCode, message, data = null) => {
   const response = {
     success: true,
     message,
-    ...(data && { data })
+    ...(data && { data }),
   };
 
   return res.status(statusCode).json(response);
@@ -36,9 +36,10 @@ const sendPaginatedResponse = (res, statusCode, message, data, pagination) => {
       limit: pagination.limit,
       total: pagination.total,
       totalPages: Math.ceil(pagination.total / pagination.limit),
-      hasNextPage: pagination.page < Math.ceil(pagination.total / pagination.limit),
-      hasPrevPage: pagination.page > 1
-    }
+      hasNextPage:
+        pagination.page < Math.ceil(pagination.total / pagination.limit),
+      hasPrevPage: pagination.page > 1,
+    },
   };
 
   return res.status(statusCode).json(response);
@@ -53,8 +54,8 @@ const sendErrorResponse = (res, statusCode, message, errors = null) => {
     error: {
       message,
       statusCode,
-      ...(errors && { errors })
-    }
+      ...(errors && { errors }),
+    },
   };
 
   return res.status(statusCode).json(response);
@@ -64,31 +65,53 @@ const sendErrorResponse = (res, statusCode, message, errors = null) => {
  * Send validation error response
  */
 const sendValidationError = (res, errors) => {
-  return sendErrorResponse(res, 400, 'Validation failed', errors);
+  return sendErrorResponse(res, 400, "Validation failed", errors);
 };
 
 /**
  * Send not found response
  */
-const sendNotFoundResponse = (res, resource = 'Resource') => {
+const sendNotFoundResponse = (res, resource = "Resource") => {
   return sendErrorResponse(res, 404, `${resource} not found`);
 };
 
 /**
  * Send unauthorized response
  */
-const sendUnauthorizedResponse = (res, message = 'Unauthorized access') => {
+const sendUnauthorizedResponse = (res, message = "Unauthorized access") => {
   return sendErrorResponse(res, 401, message);
 };
 
 /**
  * Send forbidden response
  */
-const sendForbiddenResponse = (res, message = 'Access forbidden') => {
+const sendForbiddenResponse = (res, message = "Access forbidden") => {
   return sendErrorResponse(res, 403, message);
 };
 
+/**
+ * Convenience wrapper functions with shorter names
+ */
+const sendSuccess = (res, data, message = "Success", statusCode = 200) => {
+  return sendSuccessResponse(res, statusCode, message, data);
+};
+
+const sendError = (res, statusCode, message, errors = null) => {
+  return sendErrorResponse(res, statusCode, message, errors);
+};
+
+const sendPaginated = (
+  res,
+  data,
+  pagination,
+  message = "Success",
+  statusCode = 200
+) => {
+  return sendPaginatedResponse(res, statusCode, message, data, pagination);
+};
+
 module.exports = {
+  // Full named functions
   sendSuccessResponse,
   sendCreatedResponse,
   sendPaginatedResponse,
@@ -96,5 +119,9 @@ module.exports = {
   sendValidationError,
   sendNotFoundResponse,
   sendUnauthorizedResponse,
-  sendForbiddenResponse
+  sendForbiddenResponse,
+  // Convenience wrappers
+  sendSuccess,
+  sendError,
+  sendPaginated,
 };
