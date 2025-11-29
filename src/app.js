@@ -121,22 +121,6 @@ app.get("/", (req, res) => {
   });
 });
 
-/**
- * API Information Endpoint
- */
-app.get("/api", (req, res) => {
-  sendSuccessResponse(res, 200, "CodeDript API", {
-    version: config.server?.apiVersion || "1.0.0",
-    documentation: config.server?.baseUrl
-      ? `${config.server.baseUrl}/api/docs`
-      : "/api/docs",
-    endpoints: {
-      health: "/health",
-      testUsers: "/api/test-users",
-      stats: "/api/test-users/stats",
-    },
-  });
-});
 
 /**
  * Mount API Routes

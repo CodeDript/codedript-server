@@ -29,6 +29,7 @@ cjs/
 *.tsbuildinfo
 /.parcel-cache/
 .next/
+docs
 
 # Coverage
 coverage/

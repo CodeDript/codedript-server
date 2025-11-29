@@ -12,25 +12,26 @@ const userSchema = new mongoose.Schema(
     },
     email: {
       type: String,
-      required: true,
       unique: true,
+      sparse: true, // Allows multiple null values
       lowercase: true,
       trim: true,
       match: [/^\S+@\S+\.\S+$/, "Please provide a valid email address"],
     },
     fullname: {
       type: String,
-      required: true,
+      default: "Your Name ...",
       trim: true,
     },
     role: {
       type: String,
       enum: ["client", "developer"],
+      default: "client",
       required: true,
     },
     bio: {
       type: String,
-      default: "",
+      default: "Your Bio ...",
       maxlength: 500,
     },
     firstLogin: {
@@ -98,7 +99,7 @@ userSchema.index({ email: 1 });
 userSchema.index({ role: 1 });
 userSchema.index({ isActive: 1 });
 
-// Virtual for full statistics
+// Virtual for profile completeness percentage
 userSchema.virtual("profileCompleteness").get(function () {
   let completeness = 0;
   if (this.fullname) completeness += 20;
@@ -107,6 +108,11 @@ userSchema.virtual("profileCompleteness").get(function () {
   if (this.avatar) completeness += 20;
   if (this.skills && this.skills.length > 0) completeness += 20;
   return completeness;
+});
+
+// Virtual to check if profile is complete
+userSchema.virtual("isProfileComplete").get(function () {
+  return !!(this.walletAddress && this.email && this.fullname && this.role);
 });
 
 // Ensure virtuals are included in JSON
