@@ -47,6 +47,11 @@ const upload = multer({
 const uploadAvatar = upload.single("avatar");
 
 /**
+ * Middleware for multiple gig images upload (up to 5 images)
+ */
+const uploadGigImages = upload.array("images", 5);
+
+/**
  * Error handling wrapper for multer
  */
 const handleUploadError = (err, req, res, next) => {
@@ -59,6 +64,9 @@ const handleUploadError = (err, req, res, next) => {
     if (err.code === "LIMIT_UNEXPECTED_FILE") {
       return next(new ValidationError("Unexpected field in upload."));
     }
+    if (err.code === "LIMIT_FILE_COUNT") {
+      return next(new ValidationError("Too many files. Maximum is 5 images."));
+    }
     return next(new ValidationError(`Upload error: ${err.message}`));
   }
   next(err);
@@ -66,5 +74,6 @@ const handleUploadError = (err, req, res, next) => {
 
 module.exports = {
   uploadAvatar,
+  uploadGigImages,
   handleUploadError,
 };

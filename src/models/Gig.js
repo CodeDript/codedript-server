@@ -22,7 +22,6 @@ const gigSchema = new mongoose.Schema(
     },
     gigID: {
       type: String,
-      required: true,
       unique: true,
       match: /^\d{3,}$/,
     },
@@ -32,12 +31,7 @@ const gigSchema = new mongoose.Schema(
         trim: true,
       },
     ],
-    completedProjects: [
-      {
-        type: String,
-        trim: true,
-      },
-    ],
+
     packages: {
       type: [
         {
