@@ -5,8 +5,10 @@ const {
   requestEmailOTP,
   verifyEmailOTP,
   getCurrentUser,
+  updateUser,
 } = require("../controllers/authController");
 const { protect } = require("../middlewares/auth");
+const { uploadAvatar, handleUploadError } = require("../middlewares/upload");
 
 /**
  * @route   POST /auth/wallet-login
@@ -35,5 +37,12 @@ router.post("/email/verify-otp", verifyEmailOTP);
  * @access  Private
  */
 router.get("/me", protect, getCurrentUser);
+
+/**
+ * @route   PUT /auth/me
+ * @desc    Update current user profile (with optional avatar upload)
+ * @access  Private
+ */
+router.put("/me", protect, uploadAvatar, handleUploadError, updateUser);
 
 module.exports = router;

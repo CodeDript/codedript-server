@@ -14,6 +14,7 @@ const {
   isOTPExpired,
 } = require("../utils/jwtUtils");
 const { sendOTP, sendWelcomeEmail } = require("../services/emailService");
+const supabaseConfig = require("../config/supabase");
 
 /**
  * @desc    Login with MetaMask wallet
@@ -246,9 +247,118 @@ const getCurrentUser = async (req, res, next) => {
   }
 };
 
+/**
+ * @desc    Update current user profile
+ * @route   PUT /auth/me
+ * @access  Private
+ */
+const updateUser = async (req, res, next) => {
+  try {
+    const { fullname, bio, skills, role } = req.body;
+
+    // Find user
+    const user = await User.findById(req.user.userId);
+
+    if (!user) {
+      throw new AppError("User not found", 404);
+    }
+
+    // Handle avatar upload if file is provided
+    let avatarUrl = user.avatar;
+    if (req.file) {
+      try {
+        // Upload new avatar to Supabase
+        const uploadResult = await supabaseConfig.uploadFile(
+          req.file.buffer,
+          req.file.originalname,
+          "avatars",
+          req.file.mimetype
+        );
+
+        avatarUrl = uploadResult.publicUrl;
+
+        // Delete old avatar if it exists and is from Supabase
+        if (user.avatar && user.avatar.includes("supabase")) {
+          try {
+            // Extract file path from URL
+            const urlParts = user.avatar.split("/");
+            const bucketIndex = urlParts.findIndex(
+              (part) => part === supabaseConfig.bucketName
+            );
+            if (bucketIndex !== -1) {
+              const filePath = urlParts.slice(bucketIndex + 1).join("/");
+              await supabaseConfig.deleteFile(filePath);
+              logger.info(`Old avatar deleted: ${filePath}`);
+            }
+          } catch (deleteError) {
+            // Log error but don't fail the update
+            logger.warn(`Failed to delete old avatar: ${deleteError.message}`);
+          }
+        }
+
+        logger.info(`Avatar uploaded successfully for user: ${user._id}`);
+      } catch (uploadError) {
+        logger.error(`Avatar upload failed: ${uploadError.message}`);
+        throw new AppError(
+          `Failed to upload avatar: ${uploadError.message}`,
+          500
+        );
+      }
+    }
+
+    // Update user fields
+    if (fullname !== undefined) user.fullname = fullname;
+    if (bio !== undefined) user.bio = bio;
+    if (skills !== undefined) {
+      // Parse skills if it's a string (from form-data)
+      if (typeof skills === "string") {
+        try {
+          user.skills = JSON.parse(skills);
+        } catch (e) {
+          // If not JSON, treat as comma-separated string
+          user.skills = skills
+            .split(",")
+            .map((s) => s.trim())
+            .filter(Boolean);
+        }
+      } else if (Array.isArray(skills)) {
+        user.skills = skills;
+      }
+    }
+    if (role !== undefined) {
+      // Validate role
+      if (!["client", "developer"].includes(role)) {
+        throw new AppError(
+          "Invalid role. Must be 'client' or 'developer'",
+          400
+        );
+      }
+      user.role = role;
+    }
+    if (avatarUrl !== user.avatar) {
+      user.avatar = avatarUrl;
+    }
+
+    await user.save();
+
+    // Remove sensitive data
+    const userResponse = user.toObject();
+    delete userResponse.OTP;
+
+    logger.info(`User profile updated: ${user._id}`);
+
+    sendSuccessResponse(res, 200, "Profile updated successfully", {
+      user: userResponse,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   loginWithWallet,
   requestEmailOTP,
   verifyEmailOTP,
   getCurrentUser,
+  updateUser,
 };
