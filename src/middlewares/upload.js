@@ -103,6 +103,13 @@ const uploadDeliverables = uploadDocument.array("deliverables", 20);
 const uploadMilestonePreviews = uploadDocument.array("previews", 10);
 
 /**
+ * Middleware for request change files upload (up to 5 files)
+ *
+ * Note: field name is `files` to match the RequestChange model and controller expectations.
+ */
+const uploadRequestChangeFiles = uploadDocument.array("files", 5);
+
+/**
  * Error handling wrapper for multer
  */
 const handleUploadError = (err, req, res, next) => {
@@ -129,5 +136,6 @@ module.exports = {
   uploadAgreementDocuments,
   uploadDeliverables,
   uploadMilestonePreviews,
+  uploadRequestChangeFiles,
   handleUploadError,
 };

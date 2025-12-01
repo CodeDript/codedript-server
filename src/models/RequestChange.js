@@ -10,7 +10,6 @@ const requestChangeSchema = new mongoose.Schema(
     },
     requestID: {
       type: String,
-      required: true,
       unique: true,
       match: /^\d{2,}$/,
     },
@@ -42,14 +41,14 @@ const requestChangeSchema = new mongoose.Schema(
     ],
     status: {
       type: String,
-      enum: ["pending", "accepted", "paid"],
+      enum: ["pending", "priced", "paid"],
       default: "pending",
       index: true,
     },
     price: {
       type: Number,
-      required: true,
       min: 0,
+      default: null,
     },
   },
   {

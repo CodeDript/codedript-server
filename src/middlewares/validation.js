@@ -242,7 +242,7 @@ const validateStatusUpdate = (req, res, next) => {
     ]);
   }
 
-  const validStatuses = ["pending", "rejected", "cancelled", "active", "in-progress", "completed"];
+  const validStatuses = ["pending", "rejected", "cancelled", "active", "in-progress", "completed","paid","priced"];
   if (!validStatuses.includes(status)) {
     throw new ValidationError("Validation failed", [
       {
@@ -301,6 +301,62 @@ const validateMilestoneUpdate = (req, res, next) => {
   next();
 };
 
+/**
+ * Validate request change creation data
+ */
+const validateRequestChangeCreation = (req, res, next) => {
+  const { agreement, title, description } = req.body;
+  const errors = [];
+
+  // Required fields validation
+  if (!agreement) errors.push({ field: "agreement", message: "Agreement is required" });
+  if (!title) errors.push({ field: "title", message: "Title is required" });
+  if (!description) errors.push({ field: "description", message: "Description is required" });
+
+  if (errors.length > 0) {
+    throw new ValidationError("Validation failed", errors);
+  }
+
+  // Title length validation
+  if (title && title.length > 200) {
+    errors.push({ field: "title", message: "Title must not exceed 200 characters" });
+  }
+
+  // Description length validation
+  if (description && description.length > 2000) {
+    errors.push({ field: "description", message: "Description must not exceed 2000 characters" });
+  }
+
+  if (errors.length > 0) {
+    throw new ValidationError("Validation failed", errors);
+  }
+
+  next();
+};
+
+/**
+ * Validate request change price data
+ */
+const validateRequestChangePrice = (req, res, next) => {
+  const { price } = req.body;
+  const errors = [];
+
+  if (!price) {
+    errors.push({ field: "price", message: "Price is required" });
+  }
+
+  // Price validation
+  if (price && (isNaN(price) || parseFloat(price) <= 0)) {
+    errors.push({ field: "price", message: "Price must be a positive number" });
+  }
+
+  if (errors.length > 0) {
+    throw new ValidationError("Validation failed", errors);
+  }
+
+  next();
+};
+
 module.exports = {
   validate,
   sanitizeInput,
@@ -312,4 +368,6 @@ module.exports = {
   validateStatusUpdate,
   validateMilestoneCreation,
   validateMilestoneUpdate,
+  validateRequestChangeCreation,
+  validateRequestChangePrice,
 };
