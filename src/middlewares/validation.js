@@ -160,10 +160,156 @@ const validateUserUpdate = (req, res, next) => {
   next();
 };
 
+/**
+ * Validate agreement creation data
+ */
+const validateAgreementCreation = (req, res, next) => {
+  const { developer, gig, title, description, totalValue } = req.body;
+
+  const errors = [];
+
+  // Required fields validation
+  if (!developer) errors.push({ field: "developer", message: "Developer is required" });
+  if (!gig) errors.push({ field: "gig", message: "Gig is required" });
+  if (!title) errors.push({ field: "title", message: "Title is required" });
+  if (!description) errors.push({ field: "description", message: "Description is required" });
+  if (!totalValue) errors.push({ field: "totalValue", message: "Total value is required" });
+
+  if (errors.length > 0) {
+    throw new ValidationError("Validation failed", errors);
+  }
+
+  // Title length validation
+  if (title && title.length > 200) {
+    errors.push({ field: "title", message: "Title must not exceed 200 characters" });
+  }
+
+  // Description length validation
+  if (description && description.length > 5000) {
+    errors.push({ field: "description", message: "Description must not exceed 5000 characters" });
+  }
+
+  // Total value validation
+  if (totalValue && (isNaN(totalValue) || parseFloat(totalValue) < 0)) {
+    errors.push({ field: "totalValue", message: "Total value must be a positive number" });
+  }
+
+  if (errors.length > 0) {
+    throw new ValidationError("Validation failed", errors);
+  }
+
+  next();
+};
+
+/**
+ * Validate agreement update data
+ */
+const validateAgreementUpdate = (req, res, next) => {
+  const { title, description, totalValue } = req.body;
+  const errors = [];
+
+  // Title length validation
+  if (title && title.length > 200) {
+    errors.push({ field: "title", message: "Title must not exceed 200 characters" });
+  }
+
+  // Description length validation
+  if (description && description.length > 5000) {
+    errors.push({ field: "description", message: "Description must not exceed 5000 characters" });
+  }
+
+  // Total value validation
+  if (totalValue && (isNaN(totalValue) || parseFloat(totalValue) < 0)) {
+    errors.push({ field: "totalValue", message: "Total value must be a positive number" });
+  }
+
+  if (errors.length > 0) {
+    throw new ValidationError("Validation failed", errors);
+  }
+
+  next();
+};
+
+/**
+ * Validate status update data
+ */
+const validateStatusUpdate = (req, res, next) => {
+  const { status } = req.body;
+
+  if (!status) {
+    throw new ValidationError("Validation failed", [
+      { field: "status", message: "Status is required" },
+    ]);
+  }
+
+  const validStatuses = ["pending", "rejected", "cancelled", "active", "in-progress", "completed"];
+  if (!validStatuses.includes(status)) {
+    throw new ValidationError("Validation failed", [
+      {
+        field: "status",
+        message: `Status must be one of: ${validStatuses.join(", ")}`,
+      },
+    ]);
+  }
+
+  next();
+};
+
+/**
+ * Validate milestone creation data
+ */
+const validateMilestoneCreation = (req, res, next) => {
+  const { name } = req.body;
+
+  if (!name) {
+    throw new ValidationError("Validation failed", [
+      { field: "name", message: "Milestone name is required" },
+    ]);
+  }
+
+  if (name && name.length > 200) {
+    throw new ValidationError("Validation failed", [
+      { field: "name", message: "Milestone name must not exceed 200 characters" },
+    ]);
+  }
+
+  next();
+};
+
+/**
+ * Validate milestone update data
+ */
+const validateMilestoneUpdate = (req, res, next) => {
+  const { status } = req.body;
+
+  if (!status) {
+    throw new ValidationError("Validation failed", [
+      { field: "status", message: "Status is required" },
+    ]);
+  }
+
+  const validStatuses = ["pending", "inProgress", "completed"];
+  if (!validStatuses.includes(status)) {
+    throw new ValidationError("Validation failed", [
+      {
+        field: "status",
+        message: `Status must be one of: ${validStatuses.join(", ")}`,
+      },
+    ]);
+  }
+
+  next();
+};
+
 module.exports = {
   validate,
   sanitizeInput,
   requireFields,
   validateUser,
   validateUserUpdate,
+  validateAgreementCreation,
+  validateAgreementUpdate,
+  validateStatusUpdate,
+  validateMilestoneCreation,
+  validateMilestoneUpdate,
 };

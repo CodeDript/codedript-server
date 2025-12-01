@@ -4,7 +4,6 @@ const agreementSchema = new mongoose.Schema(
   {
     agreementID: {
       type: String,
-      required: true,
       unique: true,
       match: /^\d{3,}$/,
     },
@@ -14,25 +13,7 @@ const agreementSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
-    clientInfo: {
-      name: {
-        type: String,
-        required: true,
-        trim: true,
-      },
-      email: {
-        type: String,
-        required: true,
-        trim: true,
-        lowercase: true,
-      },
-      walletAddress: {
-        type: String,
-        required: true,
-        trim: true,
-        lowercase: true,
-      },
-    },
+    
     developer: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",
@@ -88,7 +69,7 @@ const agreementSchema = new mongoose.Schema(
     ],
     startDate: {
       type: Date,
-      default: null,
+      default: Date.now,
     },
     endDate: {
       type: Date,
@@ -218,8 +199,17 @@ agreementSchema.virtual("progressPercentage").get(function () {
   return Math.round((completedMilestones / this.milestones.length) * 100);
 });
 
-// Ensure virtuals are included in JSON
-agreementSchema.set("toJSON", { virtuals: true });
+// Ensure virtuals are included in JSON and remove redundant stored info
+agreementSchema.set("toJSON", {
+  virtuals: true,
+  transform: (doc, ret) => {
+    // Remove redundant clientInfo/developerInfo if present in stored documents
+    if (ret.clientInfo) delete ret.clientInfo;
+    if (ret.developerInfo) delete ret.developerInfo;
+    return ret;
+  },
+});
+
 agreementSchema.set("toObject", { virtuals: true });
 
 // Static method to get agreements by status
