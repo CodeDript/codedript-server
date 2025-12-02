@@ -4,9 +4,8 @@ const transactionSchema = new mongoose.Schema(
   {
     transactionID: {
       type: String,
-      required: true,
       unique: true,
-      match: /^\d+$/,
+      index: true,
     },
     type: {
       type: String,
@@ -53,9 +52,26 @@ const transactionSchema = new mongoose.Schema(
       trim: true,
       lowercase: true,
     },
-  },
-  {
-    timestamps: true,
+    from: {
+      type: String,
+      required: true,
+      trim: true,
+      lowercase: true,
+    },
+    to: {
+      type: String,
+      required: true,
+      trim: true,
+      lowercase: true,
+    },
+    transactionFee: {
+      type: String,
+      required: true,
+    },
+    timestamp: {
+      type: String,
+      required: true,
+    },
   }
 );
 
@@ -76,9 +92,9 @@ transactionSchema.pre("save", async function (next) {
       );
       if (lastTransaction && lastTransaction.transactionID) {
         const lastNumber = parseInt(lastTransaction.transactionID);
-        this.transactionID = String(lastNumber + 1);
+        this.transactionID = String(lastNumber + 1).padStart(3, '0');
       } else {
-        this.transactionID = "1";
+        this.transactionID = "001";
       }
     } catch (error) {
       return next(error);
@@ -105,6 +121,29 @@ transactionSchema.statics.getByNetwork = function (network) {
 // Virtual to check if transaction is on testnet
 transactionSchema.virtual("isTestnet").get(function () {
   return ["sepolia", "goerli", "mumbai"].includes(this.network);
+});
+
+// Virtual to calculate time ago
+transactionSchema.virtual("timeAgo").get(function () {
+  if (!this.timestampDate) return null;
+  
+  const now = new Date();
+  const txTime = new Date(this.timestampDate);
+  const diffMs = now - txTime;
+  const diffSecs = Math.floor(diffMs / 1000);
+  const diffMins = Math.floor(diffSecs / 60);
+  const diffHours = Math.floor(diffMins / 60);
+  const diffDays = Math.floor(diffHours / 24);
+
+  if (diffSecs < 60) {
+    return `${diffSecs} sec${diffSecs !== 1 ? 's' : ''} ago`;
+  } else if (diffMins < 60) {
+    return `${diffMins} min${diffMins !== 1 ? 's' : ''} ago`;
+  } else if (diffHours < 24) {
+    return `${diffHours} hr${diffHours !== 1 ? 's' : ''} ago`;
+  } else {
+    return `${diffDays} day${diffDays !== 1 ? 's' : ''} ago`;
+  }
 });
 
 // Ensure virtuals are included in JSON
