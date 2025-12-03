@@ -85,6 +85,7 @@ const AGREEMENT_STATUS = {
   ACTIVE: "active",
   IN_PROGRESS: "in-progress",
   COMPLETED: "completed",
+  PAID: "paid",
 };
 
 // Transaction Types (aligned with Transaction model)

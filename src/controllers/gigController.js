@@ -1,4 +1,5 @@
 const Gig = require("../models/Gig");
+const User = require("../models/User");
 const {
   ValidationError,
   NotFoundError,
@@ -79,6 +80,14 @@ const createGig = async (req, res, next) => {
 
     // Populate developer details
     await gig.populate("developer", "username email walletAddress role");
+
+    // Update developer's totalGigs statistics
+    await User.findByIdAndUpdate(
+      req.user.userId,
+      { $inc: { "statistics.totalGigs": 1 } },
+      { new: true }
+    );
+    logger.info(`Updated totalGigs for developer: ${req.user.userId}`);
 
     sendSuccessResponse(res, 201, "Gig created successfully", gig);
   } catch (error) {
@@ -377,8 +386,33 @@ const deleteGig = async (req, res, next) => {
     }
 
     // Soft delete by setting isActive to false
-    gig.isActive = false;
-    await gig.save();
+    const wasActive = gig.isActive;
+    if (wasActive) {
+      gig.isActive = false;
+      await gig.save();
+
+      // Safely decrement developer's totalGigs statistics only if it won't go below 0
+      try {
+        const user = await User.findById(req.user.userId).select("statistics.totalGigs");
+        const current = user && user.statistics ? user.statistics.totalGigs || 0 : 0;
+        if (current > 0) {
+          await User.findByIdAndUpdate(
+            req.user.userId,
+            { $inc: { "statistics.totalGigs": -1 } },
+            { new: true, runValidators: true }
+          );
+          logger.info(`Decremented totalGigs for developer: ${req.user.userId}`);
+        } else {
+          logger.info(`Skipped decrementing totalGigs for developer: ${req.user.userId} (current=${current})`);
+        }
+      } catch (e) {
+        logger.warn(`Failed to update totalGigs for developer ${req.user.userId}: ${e.message}`);
+      }
+    } else {
+      // Already inactive: return a clear response and avoid changing statistics
+      logger.info(`Gig ${gig._id} already inactive; no statistics change required`);
+      return sendErrorResponse(res, 410, "Gig already deleted");
+    }
 
     sendSuccessResponse(res, 200, "Gig deleted successfully", {
       gigId: gig._id,

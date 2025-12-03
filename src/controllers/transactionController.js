@@ -1,5 +1,6 @@
 const Transaction = require("../models/Transaction");
 const Agreement = require("../models/Agreement");
+const User = require("../models/User");
 const {
   ValidationError,
   NotFoundError,
@@ -106,6 +107,29 @@ const createTransaction = async (req, res, next) => {
     logger.info(
       `Transaction created successfully: ID=${transaction.transactionID}, Hash=${transactionHash}`
     );
+
+    // Update user statistics for completion transactions
+    if (type === "completion") {
+      const paymentAmount = parseFloat(blockchainData.value);
+      
+      // Update developer's totalEarned
+      await User.findByIdAndUpdate(
+        agreementDoc.developer,
+        { $inc: { "statistics.totalEarned": paymentAmount } },
+        { new: true }
+      );
+      
+      // Update client's totalSpent
+      await User.findByIdAndUpdate(
+        agreementDoc.client,
+        { $inc: { "statistics.totalSpent": paymentAmount } },
+        { new: true }
+      );
+      
+      logger.info(
+        `Updated statistics - Developer ${agreementDoc.developer} earned: ${paymentAmount}, Client ${agreementDoc.client} spent: ${paymentAmount}`
+      );
+    }
 
     // Populate agreement details
     await transaction.populate({

@@ -1,4 +1,4 @@
-const { validationResult } = require("express-validator");
+const { validationResult, body, param, query } = require("express-validator");
 const { ValidationError } = require("../utils/errorHandler");
 
 /**
@@ -357,6 +357,194 @@ const validateRequestChangePrice = (req, res, next) => {
   next();
 };
 
+/**
+ * Review validation rules
+ */
+
+/**
+ * Validation rules for creating a review
+ */
+const createReviewValidation = [
+  body("gig")
+    .trim()
+    .notEmpty()
+    .withMessage("Gig ID is required")
+    .isMongoId()
+    .withMessage("Invalid gig ID format"),
+  body("reviewee")
+    .trim()
+    .notEmpty()
+    .withMessage("Reviewee ID is required")
+    .isMongoId()
+    .withMessage("Invalid reviewee ID format"),
+  body("rating")
+    .notEmpty()
+    .withMessage("Rating is required")
+    .isInt({ min: 1, max: 5 })
+    .withMessage("Rating must be between 1 and 5"),
+  body("comment")
+    .trim()
+    .notEmpty()
+    .withMessage("Comment is required")
+    .isLength({ max: 1000 })
+    .withMessage("Comment must not exceed 1000 characters"),
+  validate,
+];
+
+/**
+ * Validation rules for updating a review
+ */
+const updateReviewValidation = [
+  body("rating")
+    .optional()
+    .isInt({ min: 1, max: 5 })
+    .withMessage("Rating must be between 1 and 5"),
+  body("comment")
+    .optional()
+    .trim()
+    .isLength({ max: 1000 })
+    .withMessage("Comment must not exceed 1000 characters"),
+  validate,
+];
+
+/**
+ * Validation rules for getting reviews with filters
+ */
+const getReviewsValidation = [
+  query("gig").optional().isMongoId().withMessage("Invalid gig ID format"),
+  query("reviewer")
+    .optional()
+    .isMongoId()
+    .withMessage("Invalid reviewer ID format"),
+  query("reviewee")
+    .optional()
+    .isMongoId()
+    .withMessage("Invalid reviewee ID format"),
+  query("minRating")
+    .optional()
+    .isInt({ min: 1, max: 5 })
+    .withMessage("Minimum rating must be between 1 and 5"),
+  query("limit")
+    .optional()
+    .isInt({ min: 1, max: 100 })
+    .withMessage("Limit must be between 1 and 100"),
+  query("page")
+    .optional()
+    .isInt({ min: 1 })
+    .withMessage("Page must be at least 1"),
+  validate,
+];
+
+/**
+ * Validation rules for review ID parameter
+ */
+const reviewIdValidation = [
+  param("id").isMongoId().withMessage("Invalid review ID format"),
+  validate,
+];
+
+/**
+ * Validation rules for gig ID parameter
+ */
+const gigIdValidation = [
+  param("gigId").isMongoId().withMessage("Invalid gig ID format"),
+  validate,
+];
+
+/**
+ * Validation rules for user ID parameter
+ */
+const userIdValidation = [
+  param("userId").isMongoId().withMessage("Invalid user ID format"),
+  validate,
+];
+
+/**
+ * Transaction validation rules
+ */
+
+/**
+ * Validation rules for creating a transaction
+ */
+const createTransactionValidation = [
+  body("type")
+    .trim()
+    .notEmpty()
+    .withMessage("Transaction type is required")
+    .isIn(["creation", "modification", "completion"])
+    .withMessage(
+      "Transaction type must be one of: creation, modification, completion"
+    ),
+  body("agreement")
+    .trim()
+    .notEmpty()
+    .withMessage("Agreement ID is required")
+    .isMongoId()
+    .withMessage("Invalid agreement ID format"),
+  body("transactionHash")
+    .trim()
+    .notEmpty()
+    .withMessage("Transaction hash is required")
+    .matches(/^0x[a-fA-F0-9]{64}$/)
+    .withMessage("Invalid transaction hash format"),
+  body("network")
+    .trim()
+    .notEmpty()
+    .withMessage("Network is required")
+    .isIn(["mainnet", "sepolia", "goerli", "polygon", "mumbai"])
+    .withMessage(
+      "Network must be one of: mainnet, sepolia, goerli, polygon, mumbai"
+    ),
+  validate,
+];
+
+/**
+ * Validation rules for getting transactions with filters
+ */
+const getTransactionsValidation = [
+  query("type")
+    .optional()
+    .isIn(["creation", "modification", "completion"])
+    .withMessage(
+      "Type must be one of: creation, modification, completion"
+    ),
+  query("network")
+    .optional()
+    .isIn(["mainnet", "sepolia", "goerli", "polygon", "mumbai"])
+    .withMessage(
+      "Network must be one of: mainnet, sepolia, goerli, polygon, mumbai"
+    ),
+  query("agreement")
+    .optional()
+    .isMongoId()
+    .withMessage("Invalid agreement ID format"),
+  query("limit")
+    .optional()
+    .isInt({ min: 1, max: 100 })
+    .withMessage("Limit must be between 1 and 100"),
+  query("page")
+    .optional()
+    .isInt({ min: 1 })
+    .withMessage("Page must be at least 1"),
+  validate,
+];
+
+/**
+ * Validation rules for transaction ID parameter
+ */
+const transactionIdValidation = [
+  param("id").isMongoId().withMessage("Invalid transaction ID format"),
+  validate,
+];
+
+/**
+ * Validation rules for agreement ID parameter
+ */
+const agreementIdValidation = [
+  param("agreementId").isMongoId().withMessage("Invalid agreement ID format"),
+  validate,
+];
+
 module.exports = {
   validate,
   sanitizeInput,
@@ -370,4 +558,14 @@ module.exports = {
   validateMilestoneUpdate,
   validateRequestChangeCreation,
   validateRequestChangePrice,
+  createReviewValidation,
+  updateReviewValidation,
+  getReviewsValidation,
+  reviewIdValidation,
+  gigIdValidation,
+  userIdValidation,
+  createTransactionValidation,
+  getTransactionsValidation,
+  transactionIdValidation,
+  agreementIdValidation,
 };

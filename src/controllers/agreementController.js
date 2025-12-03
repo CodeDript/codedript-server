@@ -374,6 +374,47 @@ const updateAgreementStatus = async (req, res, next) => {
         );
       }
       agreement.endDate = new Date();
+      // Note: statistics updated when status changes to "paid"
+    } else if (status === "paid") {
+      // Only client can mark as paid after completion
+      if (agreement.client.toString() !== userId) {
+        throw new AuthorizationError(
+          "Only the client can mark the agreement as paid"
+        );
+      }
+      if (agreement.status !== "completed") {
+        throw new ValidationError(
+          "Only completed agreements can be marked as paid"
+        );
+      }
+
+      const paymentAmount = agreement.financials.totalValue;
+
+      // Update all statistics for both parties when payment is confirmed
+      await User.findByIdAndUpdate(
+        agreement.client,
+        { 
+          $inc: { 
+            "statistics.completedAgreements": 1,
+            "statistics.totalSpent": paymentAmount
+          } 
+        },
+        { new: true }
+      );
+      await User.findByIdAndUpdate(
+        agreement.developer,
+        { 
+          $inc: { 
+            "statistics.completedAgreements": 1,
+            "statistics.totalEarned": paymentAmount
+          } 
+        },
+        { new: true }
+      );
+      logger.info(
+        `Updated statistics - Client ${agreement.client}: completedAgreements +1, totalSpent +${paymentAmount}; ` +
+        `Developer ${agreement.developer}: completedAgreements +1, totalEarned +${paymentAmount}`
+      );
     }
 
     agreement.status = status;
