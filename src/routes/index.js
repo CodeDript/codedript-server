@@ -7,6 +7,7 @@ const gigRoutes = require("./gigRoutes");
 const agreementRoutes = require("./agreementRoutes");
 const requestChangeRoutes = require("./requestChangeRoutes");
 const transactionRoutes = require("./transactionRoutes");
+const reviewRoutes = require("./reviewRoutes");
 
 // Mount route modules
 router.use("/auth", authRoutes);
@@ -14,6 +15,7 @@ router.use("/gigs", gigRoutes);
 router.use("/agreements", agreementRoutes);
 router.use("/changes", requestChangeRoutes);
 router.use("/transactions", transactionRoutes);
+router.use("/reviews", reviewRoutes);
 
 // Add other routes here as needed
 
