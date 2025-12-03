@@ -1,14 +1,7 @@
 const Gig = require("../models/Gig");
 const User = require("../models/User");
-const {
-  ValidationError,
-  NotFoundError,
-  AuthorizationError,
-} = require("../utils/errorHandler");
-const {
-  sendSuccessResponse,
-  sendErrorResponse,
-} = require("../utils/responseHandler");
+
+const { sendSuccessResponse, sendErrorResponse } = require("../utils/responseHandler");
 const supabaseConfig = require("../config/supabase");
 const logger = require("../utils/logger");
 
@@ -23,7 +16,7 @@ const createGig = async (req, res, next) => {
 
     // Validate required fields
     if (!title || !description || !packages) {
-      throw new ValidationError(
+      return sendErrorResponse(res, 400, 
         "Please provide title, description, and at least one package"
       );
     }
@@ -34,17 +27,17 @@ const createGig = async (req, res, next) => {
       try {
         parsedPackages = JSON.parse(packages);
       } catch (e) {
-        throw new ValidationError("Invalid packages format");
+        return sendErrorResponse(res, 400, "Invalid packages format");
       }
     }
 
     // Validate packages
     if (!Array.isArray(parsedPackages) || parsedPackages.length === 0) {
-      throw new ValidationError("Please provide at least one package");
+      return sendErrorResponse(res, 400, "Please provide at least one package");
     }
 
     if (parsedPackages.length > 3) {
-      throw new ValidationError("A gig can have at most 3 packages");
+      return sendErrorResponse(res, 400, "A gig can have at most 3 packages");
     }
 
     // Handle image uploads to Supabase
@@ -63,7 +56,7 @@ const createGig = async (req, res, next) => {
         logger.info(`Uploaded ${imageUrls.length} images for new gig`);
       } catch (uploadError) {
         logger.error(`Image upload failed: ${uploadError.message}`);
-        throw new ValidationError(
+        return sendErrorResponse(res, 400, 
           `Failed to upload images: ${uploadError.message}`
         );
       }
@@ -193,7 +186,7 @@ const getGigById = async (req, res, next) => {
     }
 
     if (!gig) {
-      throw new NotFoundError("Gig not found");
+      return sendErrorResponse(res, 404, "Gig not found");
     }
 
     sendSuccessResponse(res, 200, "Gig retrieved successfully", gig);
@@ -270,12 +263,12 @@ const updateGig = async (req, res, next) => {
     const gig = await Gig.findById(id);
 
     if (!gig) {
-      throw new NotFoundError("Gig not found");
+      return sendErrorResponse(res, 404, "Gig not found");
     }
 
     // Check if user is the owner
     if (gig.developer.toString() !== req.user.userId) {
-      throw new AuthorizationError("You can only update your own gigs");
+      return sendErrorResponse(res, 403, "You can only update your own gigs");
     }
 
     // Parse packages if it's a string (from form-data)
@@ -284,7 +277,7 @@ const updateGig = async (req, res, next) => {
       try {
         parsedPackages = JSON.parse(packages);
       } catch (e) {
-        throw new ValidationError("Invalid packages format");
+        return sendErrorResponse(res, 400, "Invalid packages format");
       }
     }
 
@@ -295,7 +288,7 @@ const updateGig = async (req, res, next) => {
         parsedPackages.length === 0 ||
         parsedPackages.length > 3
       ) {
-        throw new ValidationError(
+        return sendErrorResponse(res, 400, 
           "A gig must have at least 1 and at most 3 packages"
         );
       }
@@ -342,7 +335,7 @@ const updateGig = async (req, res, next) => {
         logger.info(`Uploaded ${imageUrls.length} new images for gig ${id}`);
       } catch (uploadError) {
         logger.error(`Image upload failed: ${uploadError.message}`);
-        throw new ValidationError(
+        return sendErrorResponse(res, 400, 
           `Failed to upload images: ${uploadError.message}`
         );
       }
@@ -377,12 +370,12 @@ const deleteGig = async (req, res, next) => {
     const gig = await Gig.findById(id);
 
     if (!gig) {
-      throw new NotFoundError("Gig not found");
+      return sendErrorResponse(res, 404, "Gig not found");
     }
 
     // Check if user is the owner
     if (gig.developer.toString() !== req.user.userId) {
-      throw new AuthorizationError("You can only delete your own gigs");
+      return sendErrorResponse(res, 403, "You can only delete your own gigs");
     }
 
     // Soft delete by setting isActive to false
@@ -436,12 +429,12 @@ const toggleGigStatus = async (req, res, next) => {
     const gig = await Gig.findById(id);
 
     if (!gig) {
-      throw new NotFoundError("Gig not found");
+      return sendErrorResponse(res, 404, "Gig not found");
     }
 
     // Check if user is the owner
     if (gig.developer.toString() !== req.user.userId) {
-      throw new AuthorizationError(
+      return sendErrorResponse(res, 403, 
         "You can only toggle status of your own gigs"
       );
     }
@@ -473,3 +466,5 @@ module.exports = {
   deleteGig,
   toggleGigStatus,
 };
+
+

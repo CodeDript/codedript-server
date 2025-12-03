@@ -1,15 +1,8 @@
 const Transaction = require("../models/Transaction");
 const Agreement = require("../models/Agreement");
 const User = require("../models/User");
-const {
-  ValidationError,
-  NotFoundError,
-  AuthorizationError,
-} = require("../utils/errorHandler");
-const {
-  sendSuccessResponse,
-  sendErrorResponse,
-} = require("../utils/responseHandler");
+
+const { sendSuccessResponse, sendErrorResponse } = require("../utils/responseHandler");
 const ethersService = require("../services/ethersService");
 const logger = require("../utils/logger");
 
@@ -24,7 +17,7 @@ const createTransaction = async (req, res, next) => {
 
     // Validate required fields
     if (!type || !agreement || !transactionHash || !network) {
-      throw new ValidationError(
+      return sendErrorResponse(res, 400, 
         "Please provide type, agreement, transactionHash, and network"
       );
     }
@@ -32,20 +25,20 @@ const createTransaction = async (req, res, next) => {
     // Validate transaction type
     const validTypes = ["creation", "modification", "completion"];
     if (!validTypes.includes(type)) {
-      throw new ValidationError(
+      return sendErrorResponse(res, 400, 
         `Invalid transaction type. Must be one of: ${validTypes.join(", ")}`
       );
     }
 
     // Verify user is authenticated
     if (!req.user || !req.user.userId) {
-      throw new AuthorizationError("User not authenticated");
+      return sendErrorResponse(res, 403, "User not authenticated");
     }
 
     // Verify the agreement exists
     const agreementDoc = await Agreement.findById(agreement);
     if (!agreementDoc) {
-      throw new NotFoundError("Agreement not found");
+      return sendErrorResponse(res, 404, "Agreement not found");
     }
 
     // Verify user is authorized (client or developer of the agreement)
@@ -54,7 +47,7 @@ const createTransaction = async (req, res, next) => {
     const isDeveloper = agreementDoc.developer.toString() === userId;
 
     if (!isClient && !isDeveloper) {
-      throw new AuthorizationError(
+      return sendErrorResponse(res, 403, 
         "You are not authorized to create transactions for this agreement"
       );
     }
@@ -62,7 +55,7 @@ const createTransaction = async (req, res, next) => {
     // Check if transaction hash already exists
     const existingTransaction = await Transaction.findOne({ transactionHash });
     if (existingTransaction) {
-      throw new ValidationError(
+      return sendErrorResponse(res, 400, 
         "Transaction with this hash already exists in the system"
       );
     }
@@ -79,7 +72,7 @@ const createTransaction = async (req, res, next) => {
 
     // Validate that the transaction is confirmed
     if (blockchainData.confirmations < 1) {
-      throw new ValidationError(
+      return sendErrorResponse(res, 400, 
         "Transaction must have at least 1 confirmation before recording"
       );
     }
@@ -175,7 +168,7 @@ const getTransactions = async (req, res, next) => {
     if (type) {
       const validTypes = ["creation", "modification", "completion"];
       if (!validTypes.includes(type)) {
-        throw new ValidationError(
+        return sendErrorResponse(res, 400, 
           `Invalid type filter. Must be one of: ${validTypes.join(", ")}`
         );
       }
@@ -191,7 +184,7 @@ const getTransactions = async (req, res, next) => {
         "mumbai",
       ];
       if (!validNetworks.includes(network)) {
-        throw new ValidationError(
+        return sendErrorResponse(res, 400, 
           `Invalid network filter. Must be one of: ${validNetworks.join(", ")}`
         );
       }
@@ -202,7 +195,7 @@ const getTransactions = async (req, res, next) => {
       // Verify agreement exists
       const agreementDoc = await Agreement.findById(agreement);
       if (!agreementDoc) {
-        throw new NotFoundError("Agreement not found");
+        return sendErrorResponse(res, 404, "Agreement not found");
       }
 
       // Verify user has access to this agreement
@@ -211,7 +204,7 @@ const getTransactions = async (req, res, next) => {
       const isDeveloper = agreementDoc.developer.toString() === userId;
 
       if (!isClient && !isDeveloper && req.user.role !== "admin") {
-        throw new AuthorizationError(
+        return sendErrorResponse(res, 403, 
           "You are not authorized to view transactions for this agreement"
         );
       }
@@ -288,7 +281,7 @@ const getTransactionById = async (req, res, next) => {
     });
 
     if (!transaction) {
-      throw new NotFoundError("Transaction not found");
+      return sendErrorResponse(res, 404, "Transaction not found");
     }
 
     // Verify user has access to this transaction
@@ -298,7 +291,7 @@ const getTransactionById = async (req, res, next) => {
     const isDeveloper = agreement.developer._id.toString() === userId;
 
     if (!isClient && !isDeveloper && req.user.role !== "admin") {
-      throw new AuthorizationError(
+      return sendErrorResponse(res, 403, 
         "You are not authorized to view this transaction"
       );
     }
@@ -325,7 +318,7 @@ const getTransactionsByAgreement = async (req, res, next) => {
     // Verify agreement exists
     const agreement = await Agreement.findById(agreementId);
     if (!agreement) {
-      throw new NotFoundError("Agreement not found");
+      return sendErrorResponse(res, 404, "Agreement not found");
     }
 
     // Verify user has access to this agreement
@@ -334,7 +327,7 @@ const getTransactionsByAgreement = async (req, res, next) => {
     const isDeveloper = agreement.developer.toString() === userId;
 
     if (!isClient && !isDeveloper && req.user.role !== "admin") {
-      throw new AuthorizationError(
+      return sendErrorResponse(res, 403, 
         "You are not authorized to view transactions for this agreement"
       );
     }
@@ -384,7 +377,7 @@ const verifyTransaction = async (req, res, next) => {
     });
 
     if (!transaction) {
-      throw new NotFoundError("Transaction not found");
+      return sendErrorResponse(res, 404, "Transaction not found");
     }
 
     // Verify user has access
@@ -394,7 +387,7 @@ const verifyTransaction = async (req, res, next) => {
     const isDeveloper = agreement.developer.toString() === userId;
 
     if (!isClient && !isDeveloper && req.user.role !== "admin") {
-      throw new AuthorizationError(
+      return sendErrorResponse(res, 403, 
         "You are not authorized to verify this transaction"
       );
     }
@@ -446,3 +439,5 @@ module.exports = {
   getTransactionsByAgreement,
   verifyTransaction,
 };
+
+

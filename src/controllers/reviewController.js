@@ -2,15 +2,8 @@ const Review = require("../models/Review");
 const User = require("../models/User");
 const Gig = require("../models/Gig");
 const Agreement = require("../models/Agreement");
-const {
-  ValidationError,
-  NotFoundError,
-  AuthorizationError,
-} = require("../utils/errorHandler");
-const {
-  sendSuccessResponse,
-  sendErrorResponse,
-} = require("../utils/responseHandler");
+
+const { sendSuccessResponse, sendErrorResponse } = require("../utils/responseHandler");
 const logger = require("../utils/logger");
 
 /**
@@ -24,26 +17,26 @@ const createReview = async (req, res, next) => {
 
     // Validate required fields
     if (!gig || !reviewee || !rating || !comment) {
-      throw new ValidationError(
+      return sendErrorResponse(res, 400, 
         "Please provide gig, reviewee, rating, and comment"
       );
     }
 
     // Validate rating range
     if (rating < 1 || rating > 5) {
-      throw new ValidationError("Rating must be between 1 and 5");
+      return sendErrorResponse(res, 400, "Rating must be between 1 and 5");
     }
 
     // Verify the gig exists
     const gigDoc = await Gig.findById(gig);
     if (!gigDoc) {
-      throw new NotFoundError("Gig not found");
+      return sendErrorResponse(res, 404, "Gig not found");
     }
 
     // Verify the reviewee exists
     const revieweeUser = await User.findById(reviewee);
     if (!revieweeUser) {
-      throw new NotFoundError("Reviewee user not found");
+      return sendErrorResponse(res, 404, "Reviewee user not found");
     }
 
     // Reviewer is the authenticated user
@@ -51,12 +44,12 @@ const createReview = async (req, res, next) => {
 
     // Verify reviewer and reviewee are not the same
     if (reviewer.toString() === reviewee.toString()) {
-      throw new ValidationError("You cannot review yourself");
+      return sendErrorResponse(res, 400, "You cannot review yourself");
     }
 
     // Check if gig belongs to the reviewee
     if (gigDoc.developer.toString() !== reviewee.toString()) {
-      throw new ValidationError(
+      return sendErrorResponse(res, 400, 
         "The reviewee must be the developer of the gig"
       );
     }
@@ -70,7 +63,7 @@ const createReview = async (req, res, next) => {
     });
 
     if (!agreement) {
-      throw new AuthorizationError(
+      return sendErrorResponse(res, 403, 
         "You can only review after completing an agreement with this developer for this gig"
       );
     }
@@ -78,7 +71,7 @@ const createReview = async (req, res, next) => {
     // Check if review already exists
     const existingReview = await Review.findOne({ gig, reviewer });
     if (existingReview) {
-      throw new ValidationError(
+      return sendErrorResponse(res, 400, 
         "You have already reviewed this gig. You can update your existing review instead."
       );
     }
@@ -134,7 +127,7 @@ const getReviewById = async (req, res, next) => {
     ]);
 
     if (!review) {
-      throw new NotFoundError("Review not found");
+      return sendErrorResponse(res, 404, "Review not found");
     }
 
     logger.info(`Retrieved review: ID=${review._id}`);
@@ -159,7 +152,7 @@ const getReviewsByGig = async (req, res, next) => {
     // Verify gig exists
     const gig = await Gig.findById(gigId);
     if (!gig) {
-      throw new NotFoundError("Gig not found");
+      return sendErrorResponse(res, 404, "Gig not found");
     }
 
     // Fetch reviews for this gig
@@ -199,7 +192,7 @@ const getReviewsByUser = async (req, res, next) => {
     // Verify user exists
     const user = await User.findById(userId);
     if (!user) {
-      throw new NotFoundError("User not found");
+      return sendErrorResponse(res, 404, "User not found");
     }
 
     // Fetch reviews for this user as reviewee
@@ -240,19 +233,19 @@ const updateReview = async (req, res, next) => {
     // Find the review
     const review = await Review.findById(id);
     if (!review) {
-      throw new NotFoundError("Review not found");
+      return sendErrorResponse(res, 404, "Review not found");
     }
 
     // Verify user is the reviewer
     if (review.reviewer.toString() !== req.user.userId.toString()) {
-      throw new AuthorizationError(
+      return sendErrorResponse(res, 403, 
         "You are not authorized to update this review"
       );
     }
 
     // Validate rating if provided
     if (rating && (rating < 1 || rating > 5)) {
-      throw new ValidationError("Rating must be between 1 and 5");
+      return sendErrorResponse(res, 400, "Rating must be between 1 and 5");
     }
 
     // Update fields
@@ -297,7 +290,7 @@ const deleteReview = async (req, res, next) => {
     // Find the review
     const review = await Review.findById(id);
     if (!review) {
-      throw new NotFoundError("Review not found");
+      return sendErrorResponse(res, 404, "Review not found");
     }
 
     // Verify user is the reviewer or admin
@@ -305,7 +298,7 @@ const deleteReview = async (req, res, next) => {
     const isAdmin = req.user.role === "admin";
 
     if (!isReviewer && !isAdmin) {
-      throw new AuthorizationError(
+      return sendErrorResponse(res, 403, 
         "You are not authorized to delete this review"
       );
     }
@@ -337,3 +330,5 @@ module.exports = {
   updateReview,
   deleteReview,
 };
+
+

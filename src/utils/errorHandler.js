@@ -1,54 +1,10 @@
 /**
- * Custom Error Classes
+ * Error Handler Utilities
+ * Centralized error handling for Express application
  */
 
-class AppError extends Error {
-  constructor(message, statusCode) {
-    super(message);
-    this.statusCode = statusCode;
-    this.status = `${statusCode}`.startsWith('4') ? 'fail' : 'error';
-    this.isOperational = true;
-
-    Error.captureStackTrace(this, this.constructor);
-  }
-}
-
-class ValidationError extends AppError {
-  constructor(message, errors = []) {
-    super(message, 400);
-    this.errors = errors;
-  }
-}
-
-class AuthenticationError extends AppError {
-  constructor(message = 'Authentication failed') {
-    super(message, 401);
-  }
-}
-
-class AuthorizationError extends AppError {
-  constructor(message = 'You do not have permission to perform this action') {
-    super(message, 403);
-  }
-}
-
-class NotFoundError extends AppError {
-  constructor(resource = 'Resource') {
-    super(`${resource} not found`, 404);
-  }
-}
-
-class ConflictError extends AppError {
-  constructor(message = 'Resource already exists') {
-    super(message, 409);
-  }
-}
-
-class DatabaseError extends AppError {
-  constructor(message = 'Database operation failed') {
-    super(message, 500);
-  }
-}
+const logger = require("./logger");
+const { sendErrorResponse } = require("./responseHandler");
 
 /**
  * Async Error Handler Wrapper
@@ -64,9 +20,9 @@ const catchAsync = (fn) => {
  * Handle Uncaught Exceptions
  */
 const handleUncaughtException = () => {
-  process.on('uncaughtException', (err) => {
-    console.error('ERROR: Uncaught Exception:', err.name, err.message);
-    console.error(err.stack);
+  process.on("uncaughtException", (err) => {
+    logger.error("ERROR: Uncaught Exception:", err.name, err.message);
+    logger.error(err.stack);
     process.exit(1);
   });
 };
@@ -75,9 +31,9 @@ const handleUncaughtException = () => {
  * Handle Unhandled Promise Rejections
  */
 const handleUnhandledRejection = () => {
-  process.on('unhandledRejection', (err) => {
-    console.error('ERROR: Unhandled Rejection:', err.name, err.message);
-    console.error(err.stack);
+  process.on("unhandledRejection", (err) => {
+    logger.error("ERROR: Unhandled Rejection:", err.name, err.message);
+    logger.error(err.stack);
     process.exit(1);
   });
 };
@@ -86,75 +42,39 @@ const handleUnhandledRejection = () => {
  * 404 Not Found Handler
  */
 const notFound = (req, res, next) => {
-  const error = new NotFoundError(`Route ${req.originalUrl}`);
-  next(error);
+  return sendErrorResponse(res, 404, `Route ${req.originalUrl} not found`);
 };
 
 /**
  * Global Error Handler Middleware
+ * Catches all errors passed via next(error) and sends consistent error responses
  */
 const errorHandler = (err, req, res, next) => {
-  err.statusCode = err.statusCode || 500;
-  err.status = err.status || 'error';
+  // Default status code and message
+  const statusCode = err.statusCode || err.status || 500;
+  const message = err.message || "Internal server error";
 
   // Log error
-  console.error('ERROR:', {
+  logger.error("ERROR:", {
     message: err.message,
-    statusCode: err.statusCode,
+    statusCode,
     stack: err.stack,
     path: req.path,
-    method: req.method
+    method: req.method,
   });
 
-  // Development error response
-  if (process.env.NODE_ENV === 'development') {
-    return res.status(err.statusCode).json({
-      success: false,
-      status: err.status,
-      error: {
-        message: err.message,
-        statusCode: err.statusCode,
-        stack: err.stack,
-        ...(err.errors && { errors: err.errors })
-      }
-    });
-  }
+  // Send error response using standardized format
+  const errorDetails = process.env.NODE_ENV === "development" 
+    ? { stack: err.stack, ...err }
+    : err.errors || null;
 
-  // Production error response
-  if (err.isOperational) {
-    return res.status(err.statusCode).json({
-      success: false,
-      status: err.status,
-      error: {
-        message: err.message,
-        statusCode: err.statusCode,
-        ...(err.errors && { errors: err.errors })
-      }
-    });
-  }
-
-  // Programming or unknown errors: don't leak details
-  return res.status(500).json({
-    success: false,
-    status: 'error',
-    error: {
-      message: 'Something went wrong',
-      statusCode: 500
-    }
-  });
+  return sendErrorResponse(res, statusCode, message, errorDetails);
 };
 
 module.exports = {
-  AppError,
-  ValidationError,
-  AuthenticationError,
-  AuthorizationError,
-  NotFoundError,
-  ConflictError,
-  DatabaseError,
   catchAsync,
   handleUncaughtException,
   handleUnhandledRejection,
   notFound,
-  errorHandler
+  errorHandler,
 };

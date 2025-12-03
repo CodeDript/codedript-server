@@ -1,14 +1,7 @@
 const RequestChange = require("../models/RequestChange");
 const Agreement = require("../models/Agreement");
-const {
-  ValidationError,
-  NotFoundError,
-  AuthorizationError,
-} = require("../utils/errorHandler");
-const {
-  sendSuccessResponse,
-  sendErrorResponse,
-} = require("../utils/responseHandler");
+
+const { sendSuccessResponse, sendErrorResponse } = require("../utils/responseHandler");
 const pinataService = require("../services/pinataService");
 const logger = require("../utils/logger");
 
@@ -30,7 +23,7 @@ const createRequestChange = async (req, res, next) => {
 
     // Validate required fields
     if (!agreement || !title || !description) {
-      throw new ValidationError(
+      return sendErrorResponse(res, 400, 
         "Please provide agreement, title, and description"
       );
     }
@@ -38,19 +31,19 @@ const createRequestChange = async (req, res, next) => {
     // Verify the agreement exists
     const agreementDoc = await Agreement.findById(agreement);
     if (!agreementDoc) {
-      throw new NotFoundError("Agreement not found");
+      return sendErrorResponse(res, 404, "Agreement not found");
     }
 
     // Verify user is the client of the agreement
     if (agreementDoc.client.toString() !== req.user.userId) {
-      throw new AuthorizationError(
+      return sendErrorResponse(res, 403, 
         "Only the client can create change requests for this agreement"
       );
     }
 
     // Agreement must be active or in-progress
     if (!["active", "in-progress"].includes(agreementDoc.status)) {
-      throw new ValidationError(
+      return sendErrorResponse(res, 400, 
         "Change requests can only be created for active or in-progress agreements"
       );
     }
@@ -144,7 +137,7 @@ const getRequestChangeById = async (req, res, next) => {
     }
 
     if (!requestChange) {
-      throw new NotFoundError("Request change not found");
+      return sendErrorResponse(res, 404, "Request change not found");
     }
 
     // Verify user has access to this request change
@@ -153,7 +146,7 @@ const getRequestChangeById = async (req, res, next) => {
       requestChange.agreement.client.toString() !== userId &&
       requestChange.agreement.developer.toString() !== userId
     ) {
-      throw new AuthorizationError(
+      return sendErrorResponse(res, 403, 
         "You do not have permission to view this request change"
       );
     }
@@ -177,12 +170,12 @@ const updateRequestChangeStatus = async (req, res, next) => {
     const { status } = req.body;
 
     if (!status) {
-      throw new ValidationError("Status is required");
+      return sendErrorResponse(res, 400, "Status is required");
     }
 
     const validStatuses = ["pending", "priced","paid"];
     if (!validStatuses.includes(status)) {
-      throw new ValidationError(
+      return sendErrorResponse(res, 400, 
         `Invalid status. Valid statuses are: ${validStatuses.join(", ")}`
       );
     }
@@ -192,25 +185,25 @@ const updateRequestChangeStatus = async (req, res, next) => {
     );
 
     if (!requestChange) {
-      throw new NotFoundError("Request change not found");
+      return sendErrorResponse(res, 404, "Request change not found");
     }
 
     const userId = req.user.userId;
 
     // Status transition rules
     if (status === "priced") {
-      throw new ValidationError(
+      return sendErrorResponse(res, 400, 
         "Use the /price endpoint to set the price for this request change"
       );
     } else if (status === "accepted") {
       // Only client can accept
       if (requestChange.agreement.client.toString() !== userId) {
-        throw new AuthorizationError(
+        return sendErrorResponse(res, 403, 
           "Only the client can accept the request change"
         );
       }
       if (requestChange.status !== "priced") {
-        throw new ValidationError(
+        return sendErrorResponse(res, 400, 
           "Only priced request changes can be accepted"
         );
       }
@@ -220,12 +213,12 @@ const updateRequestChangeStatus = async (req, res, next) => {
         requestChange.agreement.client.toString() !== userId &&
         requestChange.agreement.developer.toString() !== userId
       ) {
-        throw new AuthorizationError(
+        return sendErrorResponse(res, 403, 
           "Only parties involved can mark request change as paid"
         );
       }
       if (requestChange.status !== "accepted") {
-        throw new ValidationError(
+        return sendErrorResponse(res, 400, 
           "Only accepted request changes can be marked as paid"
         );
       }
@@ -269,19 +262,19 @@ const deleteRequestChange = async (req, res, next) => {
     );
 
     if (!requestChange) {
-      throw new NotFoundError("Request change not found");
+      return sendErrorResponse(res, 404, "Request change not found");
     }
 
     // Only client who created the request can delete it
     if (requestChange.agreement.client.toString() !== req.user.userId) {
-      throw new AuthorizationError(
+      return sendErrorResponse(res, 403, 
         "Only the client who created the request change can delete it"
       );
     }
 
     // Only allow deletion if request is pending
     if (requestChange.status !== "pending") {
-      throw new ValidationError("Only pending request changes can be deleted");
+      return sendErrorResponse(res, 400, "Only pending request changes can be deleted");
     }
 
     await RequestChange.findByIdAndDelete(id);
@@ -307,7 +300,7 @@ const getRequestChangesByAgreement = async (req, res, next) => {
     // Verify the agreement exists
     const agreement = await Agreement.findById(agreementId);
     if (!agreement) {
-      throw new NotFoundError("Agreement not found");
+      return sendErrorResponse(res, 404, "Agreement not found");
     }
 
     // Verify user has access to this agreement
@@ -316,7 +309,7 @@ const getRequestChangesByAgreement = async (req, res, next) => {
       agreement.client.toString() !== userId &&
       agreement.developer.toString() !== userId
     ) {
-      throw new AuthorizationError(
+      return sendErrorResponse(res, 403, 
         "You do not have permission to view request changes for this agreement"
       );
     }
@@ -356,7 +349,7 @@ const setRequestChangePrice = async (req, res, next) => {
     const { price } = req.body;
 
     if (!price || isNaN(price) || parseFloat(price) <= 0) {
-      throw new ValidationError("Valid price is required");
+      return sendErrorResponse(res, 400, "Valid price is required");
     }
 
     const requestChange = await RequestChange.findById(id).populate(
@@ -364,21 +357,21 @@ const setRequestChangePrice = async (req, res, next) => {
     );
 
     if (!requestChange) {
-      throw new NotFoundError("Request change not found");
+      return sendErrorResponse(res, 404, "Request change not found");
     }
 
     const userId = req.user.userId;
 
     // Only developer can set price
     if (requestChange.agreement.developer.toString() !== userId) {
-      throw new AuthorizationError(
+      return sendErrorResponse(res, 403, 
         "Only the developer can set the price for this request change"
       );
     }
 
     // Can only set price if status is pending
     if (requestChange.status !== "pending") {
-      throw new ValidationError(
+      return sendErrorResponse(res, 400, 
         "Price can only be set for pending request changes"
       );
     }
@@ -416,3 +409,5 @@ module.exports = {
   deleteRequestChange,
   getRequestChangesByAgreement,
 };
+
+

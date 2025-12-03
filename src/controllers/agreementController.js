@@ -1,15 +1,8 @@
 const Agreement = require("../models/Agreement");
 const User = require("../models/User");
 const Gig = require("../models/Gig");
-const {
-  ValidationError,
-  NotFoundError,
-  AuthorizationError,
-} = require("../utils/errorHandler");
-const {
-  sendSuccessResponse,
-  sendErrorResponse,
-} = require("../utils/responseHandler");
+
+const { sendSuccessResponse, sendErrorResponse } = require("../utils/responseHandler");
 const pinataService = require("../services/pinataService");
 const logger = require("../utils/logger");
 const { AGREEMENT_STATUS } = require("../config/constants");
@@ -32,7 +25,7 @@ const createAgreement = async (req, res, next) => {
 
     // Validate required fields
     if (!developer || !gig || !packageId || !title || !description) {
-      throw new ValidationError(
+      return sendErrorResponse(res, 400, 
         "Please provide developer, gig, packageId, title, and description"
       );
     }
@@ -40,25 +33,25 @@ const createAgreement = async (req, res, next) => {
     // Verify the developer exists and has the correct role
     const developerUser = await User.findById(developer);
     if (!developerUser) {
-      throw new NotFoundError("Developer not found");
+      return sendErrorResponse(res, 404, "Developer not found");
     }
     if (developerUser.role !== "developer") {
-      throw new ValidationError("Selected user is not a developer");
+      return sendErrorResponse(res, 400, "Selected user is not a developer");
     }
 
     // Verify the gig exists and belongs to the developer
     const gigDoc = await Gig.findById(gig);
     if (!gigDoc) {
-      throw new NotFoundError("Gig not found");
+      return sendErrorResponse(res, 404, "Gig not found");
     }
     if (gigDoc.developer.toString() !== developer) {
-      throw new ValidationError("Gig does not belong to the selected developer");
+      return sendErrorResponse(res, 400, "Gig does not belong to the selected developer");
     }
 
     // Find the selected package by ID and get its price
     const selectedPackage = gigDoc.packages.id(packageId);
     if (!selectedPackage) {
-      throw new NotFoundError("Package not found in the selected gig");
+      return sendErrorResponse(res, 404, "Package not found in the selected gig");
     }
 
     const totalValue = selectedPackage.price;
@@ -66,7 +59,7 @@ const createAgreement = async (req, res, next) => {
     // Get client info from authenticated user
     const clientUser = await User.findById(req.user.userId);
     if (!clientUser) {
-      throw new NotFoundError("Client user not found");
+      return sendErrorResponse(res, 404, "Client user not found");
     }
 
     // Parse milestones if it's a string (from form-data)
@@ -75,7 +68,7 @@ const createAgreement = async (req, res, next) => {
       try {
         parsedMilestones = JSON.parse(milestones);
       } catch (e) {
-        throw new ValidationError("Invalid milestones format");
+        return sendErrorResponse(res, 400, "Invalid milestones format");
       }
     }
 
@@ -175,7 +168,7 @@ const getAgreementById = async (req, res, next) => {
     }
 
     if (!agreement) {
-      throw new NotFoundError("Agreement not found");
+      return sendErrorResponse(res, 404, "Agreement not found");
     }
 
     // Verify user has access to this agreement
@@ -184,7 +177,7 @@ const getAgreementById = async (req, res, next) => {
       agreement.client._id.toString() !== userId &&
       agreement.developer._id.toString() !== userId
     ) {
-      throw new AuthorizationError(
+      return sendErrorResponse(res, 403, 
         "You do not have permission to view this agreement"
       );
     }
@@ -210,7 +203,7 @@ const updateAgreement = async (req, res, next) => {
     const agreement = await Agreement.findById(id);
 
     if (!agreement) {
-      throw new NotFoundError("Agreement not found");
+      return sendErrorResponse(res, 404, "Agreement not found");
     }
 
     // Verify user has access to this agreement
@@ -219,14 +212,14 @@ const updateAgreement = async (req, res, next) => {
       agreement.client.toString() !== userId &&
       agreement.developer.toString() !== userId
     ) {
-      throw new AuthorizationError(
+      return sendErrorResponse(res, 403, 
         "You do not have permission to update this agreement"
       );
     }
 
     // Only allow updates if agreement is in pending status
     if (agreement.status !== "pending") {
-      throw new ValidationError(
+      return sendErrorResponse(res, 400, 
         "Only pending agreements can be updated. Use specific endpoints for other changes."
       );
     }
@@ -265,19 +258,19 @@ const deleteAgreement = async (req, res, next) => {
     const agreement = await Agreement.findById(id);
 
     if (!agreement) {
-      throw new NotFoundError("Agreement not found");
+      return sendErrorResponse(res, 404, "Agreement not found");
     }
 
     // Only client who created the agreement can delete it
     if (agreement.client.toString() !== req.user.userId) {
-      throw new AuthorizationError(
+      return sendErrorResponse(res, 403, 
         "Only the client who created the agreement can delete it"
       );
     }
 
     // Only allow deletion if agreement is pending or rejected
     if (!["pending", "rejected"].includes(agreement.status)) {
-      throw new ValidationError(
+      return sendErrorResponse(res, 400, 
         "Only pending or rejected agreements can be deleted"
       );
     }
@@ -303,13 +296,13 @@ const updateAgreementStatus = async (req, res, next) => {
     const { status, rejectionReason } = req.body;
 
     if (!status) {
-      throw new ValidationError("Status is required");
+      return sendErrorResponse(res, 400, "Status is required");
     }
 
     // Validate status
     const validStatuses = Object.values(AGREEMENT_STATUS);
     if (!validStatuses.includes(status)) {
-      throw new ValidationError(
+      return sendErrorResponse(res, 400, 
         `Invalid status. Valid statuses are: ${validStatuses.join(", ")}`
       );
     }
@@ -317,7 +310,7 @@ const updateAgreementStatus = async (req, res, next) => {
     const agreement = await Agreement.findById(id);
 
     if (!agreement) {
-      throw new NotFoundError("Agreement not found");
+      return sendErrorResponse(res, 404, "Agreement not found");
     }
 
     const userId = req.user.userId;
@@ -326,45 +319,45 @@ const updateAgreementStatus = async (req, res, next) => {
     if (status === "active") {
       // Only developer can accept (pending -> active)
       if (agreement.developer.toString() !== userId) {
-        throw new AuthorizationError(
+        return sendErrorResponse(res, 403, 
           "Only the developer can accept the agreement"
         );
       }
       if (agreement.status !== "pending") {
-        throw new ValidationError("Only pending agreements can be accepted");
+        return sendErrorResponse(res, 400, "Only pending agreements can be accepted");
       }
       agreement.startDate = new Date();
     } else if (status === "rejected") {
       // Only developer can reject
       if (agreement.developer.toString() !== userId) {
-        throw new AuthorizationError(
+        return sendErrorResponse(res, 403, 
           "Only the developer can reject the agreement"
         );
       }
       if (agreement.status !== "pending") {
-        throw new ValidationError("Only pending agreements can be rejected");
+        return sendErrorResponse(res, 400, "Only pending agreements can be rejected");
       }
     } else if (status === "cancelled") {
       // Both parties can cancel before in-progress
       if (
         agreement.client.toString() !== userId 
       ) {
-        throw new AuthorizationError(
+        return sendErrorResponse(res, 403, 
           "Only client can cancel the agreement"
         );
       }
       if (["in-progress", "completed"].includes(agreement.status)) {
-        throw new ValidationError("Cannot cancel in-progress or completed agreements");
+        return sendErrorResponse(res, 400, "Cannot cancel in-progress or completed agreements");
       }
     } else if (status === "in-progress") {
       // Automatically set when work begins (developer)
       if (agreement.developer.toString() !== userId) {
-        throw new AuthorizationError(
+        return sendErrorResponse(res, 403, 
           "Only the developer can start the agreement"
         );
       }
       if (agreement.status !== "active") {
-        throw new ValidationError("Only active agreements can be started");
+        return sendErrorResponse(res, 400, "Only active agreements can be started");
       }
     } else if (status === "completed") {
       // Can be completed when all milestones are done or by mutual agreement
@@ -372,12 +365,12 @@ const updateAgreementStatus = async (req, res, next) => {
         agreement.client.toString() !== userId &&
         agreement.developer.toString() !== userId
       ) {
-        throw new AuthorizationError(
+        return sendErrorResponse(res, 403, 
           "Only parties involved can complete the agreement"
         );
       }
       if (!["active", "in-progress"].includes(agreement.status)) {
-        throw new ValidationError(
+        return sendErrorResponse(res, 400, 
           "Only active or in-progress agreements can be completed"
         );
       }
@@ -386,12 +379,12 @@ const updateAgreementStatus = async (req, res, next) => {
     } else if (status === "paid") {
       // Only client can mark as paid after completion
       if (agreement.client.toString() !== userId) {
-        throw new AuthorizationError(
+        return sendErrorResponse(res, 403, 
           "Only the client can mark the agreement as paid"
         );
       }
       if (agreement.status !== "completed") {
-        throw new ValidationError(
+        return sendErrorResponse(res, 400, 
           "Only completed agreements can be marked as paid"
         );
       }
@@ -456,26 +449,26 @@ const addDeliverables = async (req, res, next) => {
     const agreement = await Agreement.findById(id);
 
     if (!agreement) {
-      throw new NotFoundError("Agreement not found");
+      return sendErrorResponse(res, 404, "Agreement not found");
     }
 
     // Only developer can add deliverables
     if (agreement.developer.toString() !== req.user.userId) {
-      throw new AuthorizationError(
+      return sendErrorResponse(res, 403, 
         "Only the developer can add deliverables"
       );
     }
 
     // Agreement must be in-progress or active
     if (!["in-progress"].includes(agreement.status)) {
-      throw new ValidationError(
+      return sendErrorResponse(res, 400, 
         "Deliverables can only be added to active or in-progress agreements"
       );
     }
 
     // Handle file uploads to Pinata
     if (!req.files || req.files.length === 0) {
-      throw new ValidationError("Please upload at least one deliverable file");
+      return sendErrorResponse(res, 400, "Please upload at least one deliverable file");
     }
 
     const newDeliverables = [];
@@ -529,12 +522,12 @@ const completeMilestoneWithPreviews = async (req, res, next) => {
     const agreement = await Agreement.findById(id);
 
     if (!agreement) {
-      throw new NotFoundError("Agreement not found");
+      return sendErrorResponse(res, 404, "Agreement not found");
     }
 
     // Only developer can complete milestones with previews
     if (agreement.developer.toString() !== req.user.userId) {
-      throw new AuthorizationError(
+      return sendErrorResponse(res, 403, 
         "Only the developer can complete milestones"
       );
     }
@@ -542,12 +535,12 @@ const completeMilestoneWithPreviews = async (req, res, next) => {
     const milestone = agreement.milestones.id(milestoneId);
 
     if (!milestone) {
-      throw new NotFoundError("Milestone not found");
+      return sendErrorResponse(res, 404, "Milestone not found");
     }
 
     // Handle file uploads to Pinata
     if (!req.files || req.files.length === 0) {
-      throw new ValidationError("Please upload at least one preview file to complete the milestone");
+      return sendErrorResponse(res, 400, "Please upload at least one preview file to complete the milestone");
     }
 
     const newPreviews = [];
@@ -608,7 +601,7 @@ const getAgreementsByUser = async (req, res, next) => {
 
     // Only allow users to fetch their own agreements
     if (userId !== req.user.userId) {
-      throw new AuthorizationError("You can only view your own agreements");
+      return sendErrorResponse(res, 403, "You can only view your own agreements");
     }
 
     const filter = {};
@@ -703,3 +696,5 @@ module.exports = {
   getAgreementsByUser,
   getAgreementStats,
 };
+
+

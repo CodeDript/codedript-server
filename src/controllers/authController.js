@@ -1,10 +1,6 @@
 const User = require("../models/User");
 const logger = require("../utils/logger");
-const {
-  sendSuccessResponse,
-  sendErrorResponse,
-} = require("../utils/responseHandler");
-const { AppError } = require("../utils/errorHandler");
+const { sendSuccessResponse, sendErrorResponse } = require("../utils/responseHandler");
 const {
   generateToken,
   generateOTP,
@@ -26,7 +22,7 @@ const loginWithWallet = async (req, res, next) => {
     const { walletAddress } = req.body;
 
     if (!walletAddress) {
-      throw new AppError("Wallet address is required", 400);
+      return sendErrorResponse(res, 400, "Wallet address is required");
     }
 
     // Normalize wallet address to lowercase
@@ -101,13 +97,13 @@ const requestEmailOTP = async (req, res, next) => {
     const { email } = req.body;
 
     if (!email) {
-      throw new AppError("Email is required", 400);
+      return sendErrorResponse(res, 400, "Email is required");
     }
 
     // Validate email format
     const emailRegex = /^\S+@\S+\.\S+$/;
     if (!emailRegex.test(email)) {
-      throw new AppError("Invalid email format", 400);
+      return sendErrorResponse(res, 400, "Invalid email format");
     }
 
     const normalizedEmail = email.toLowerCase().trim();
@@ -168,7 +164,7 @@ const verifyEmailOTP = async (req, res, next) => {
     const { email, otp } = req.body;
 
     if (!email || !otp) {
-      throw new AppError("Email and OTP are required", 400);
+      return sendErrorResponse(res, 400, "Email and OTP are required");
     }
 
     const normalizedEmail = email.toLowerCase().trim();
@@ -177,12 +173,12 @@ const verifyEmailOTP = async (req, res, next) => {
     const user = await User.findOne({ email: normalizedEmail });
 
     if (!user) {
-      throw new AppError("User not found", 404);
+      return sendErrorResponse(res, 404, "User not found");
     }
 
     // Check if OTP exists
     if (!user.OTP || !user.OTP.code) {
-      throw new AppError("No OTP found. Please request a new one.", 400);
+      return sendErrorResponse(res, 400, "No OTP found. Please request a new one.");
     }
 
     // Check if OTP has expired
@@ -190,12 +186,12 @@ const verifyEmailOTP = async (req, res, next) => {
       // Clear expired OTP
       user.OTP = { code: null, expiresAt: null };
       await user.save();
-      throw new AppError("OTP has expired. Please request a new one.", 400);
+      return sendErrorResponse(res, 400, "OTP has expired. Please request a new one.");
     }
 
     // Verify OTP
     if (!verifyOTP(otp, user.OTP.code)) {
-      throw new AppError("Invalid OTP. Please try again.", 400);
+      return sendErrorResponse(res, 400, "Invalid OTP. Please try again.");
     }
 
     // OTP is valid - clear it and update user
@@ -236,7 +232,7 @@ const getCurrentUser = async (req, res, next) => {
     const user = await User.findById(req.user.userId).select("-OTP");
 
     if (!user) {
-      throw new AppError("User not found", 404);
+      return sendErrorResponse(res, 404, "User not found");
     }
 
     sendSuccessResponse(res, 200, "User profile retrieved", {
@@ -254,13 +250,13 @@ const getCurrentUser = async (req, res, next) => {
  */
 const updateUser = async (req, res, next) => {
   try {
-    const { fullname, bio, skills, role } = req.body;
+    const { fullname, bio, skills, role,walletAddress } = req.body;
 
     // Find user
     const user = await User.findById(req.user.userId);
 
     if (!user) {
-      throw new AppError("User not found", 404);
+      return sendErrorResponse(res, 404, "User not found");
     }
 
     // Handle avatar upload if file is provided
@@ -299,10 +295,7 @@ const updateUser = async (req, res, next) => {
         logger.info(`Avatar uploaded successfully for user: ${user._id}`);
       } catch (uploadError) {
         logger.error(`Avatar upload failed: ${uploadError.message}`);
-        throw new AppError(
-          `Failed to upload avatar: ${uploadError.message}`,
-          500
-        );
+        return sendErrorResponse(res, 500, `Failed to upload avatar: ${uploadError.message}`);
       }
     }
 
@@ -328,12 +321,25 @@ const updateUser = async (req, res, next) => {
     if (role !== undefined) {
       // Validate role
       if (!["client", "developer"].includes(role)) {
-        throw new AppError(
-          "Invalid role. Must be 'client' or 'developer'",
-          400
-        );
+        return sendErrorResponse(res, 400, "Invalid role. Must be 'client' or 'developer'");
       }
       user.role = role;
+    }
+    if (walletAddress !== undefined) {
+      // Normalize and validate wallet address
+      const normalizedWallet = walletAddress.toLowerCase().trim();
+      
+      // Check if wallet address is already in use by another user
+      const existingUser = await User.findOne({ 
+        walletAddress: normalizedWallet,
+        _id: { $ne: user._id }
+      });
+      
+      if (existingUser) {
+        return sendErrorResponse(res, 400, "Wallet address is already in use");
+      }
+      
+      user.walletAddress = normalizedWallet;
     }
     if (avatarUrl !== user.avatar) {
       user.avatar = avatarUrl;
@@ -362,3 +368,6 @@ module.exports = {
   getCurrentUser,
   updateUser,
 };
+
+
+

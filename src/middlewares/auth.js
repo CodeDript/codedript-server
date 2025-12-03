@@ -1,8 +1,5 @@
 const jwt = require("jsonwebtoken");
-const {
-  AuthenticationError,
-  AuthorizationError,
-} = require("../utils/errorHandler");
+const { sendErrorResponse } = require("../utils/responseHandler");
 const { getConfig } = require("../config/environment");
 const { verifyToken } = require("../utils/jwtUtils");
 
@@ -40,7 +37,7 @@ const protect = async (req, res, next) => {
     }
 
     if (!token) {
-      throw new AuthenticationError(
+      return sendErrorResponse(res, 401, 
         "No token provided. Please login to access this resource"
       );
     }
@@ -52,11 +49,11 @@ const protect = async (req, res, next) => {
       req.user = decoded;
     } catch (error) {
       if (error.message === "Token has expired") {
-        throw new AuthenticationError("Token has expired");
+        return sendErrorResponse(res, 401, "Token has expired");
       } else if (error.message === "Invalid token") {
-        throw new AuthenticationError("Invalid token");
+        return sendErrorResponse(res, 401, "Invalid token");
       } else {
-        throw new AuthenticationError("Invalid or expired token");
+        return sendErrorResponse(res, 401, "Invalid or expired token");
       }
     }
 
@@ -72,11 +69,11 @@ const protect = async (req, res, next) => {
 const restrictTo = (...roles) => {
   return (req, res, next) => {
     if (!req.user) {
-      throw new AuthenticationError("You must be logged in");
+      return sendErrorResponse(res, 401, "You must be logged in");
     }
 
     if (!roles.includes(req.user.role)) {
-      throw new AuthorizationError(
+      return sendErrorResponse(res, 403, 
         `You do not have permission to perform this action. Required roles: ${roles.join(
           ", "
         )}`
@@ -123,3 +120,4 @@ module.exports = {
   restrictTo,
   optionalAuth,
 };
+

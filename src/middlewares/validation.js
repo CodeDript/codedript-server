@@ -1,5 +1,5 @@
 const { validationResult, body, param, query } = require("express-validator");
-const { ValidationError } = require("../utils/errorHandler");
+const { sendErrorResponse } = require("../utils/responseHandler");
 
 /**
  * Validation Middleware
@@ -19,7 +19,7 @@ const validate = (req, res, next) => {
       value: err.value,
     }));
 
-    throw new ValidationError("Validation failed", formattedErrors);
+    return sendErrorResponse(res, 400, "Validation failed", formattedErrors);
   }
 
   next();
@@ -56,7 +56,7 @@ const requireFields = (fields) => {
     });
 
     if (missingFields.length > 0) {
-      throw new ValidationError(
+      return sendErrorResponse(res, 400, 
         "Missing required fields",
         missingFields.map((field) => ({
           field,
@@ -77,7 +77,7 @@ const validateUser = (req, res, next) => {
 
   // Required fields validation
   if (!walletAddress || !email || !fullname || !role) {
-    throw new ValidationError(
+    return sendErrorResponse(res, 400, 
       "Missing required fields: walletAddress, email, fullname, and role are required",
       [
         { field: "walletAddress", message: "Wallet address is required" },
@@ -90,7 +90,7 @@ const validateUser = (req, res, next) => {
 
   // Wallet address validation
   if (typeof walletAddress !== "string" || walletAddress.trim().length === 0) {
-    throw new ValidationError("Invalid wallet address", [
+    return sendErrorResponse(res, 400, "Invalid wallet address", [
       {
         field: "walletAddress",
         message: "Wallet address must be a non-empty string",
@@ -101,28 +101,28 @@ const validateUser = (req, res, next) => {
   // Email validation
   const emailRegex = /^\S+@\S+\.\S+$/;
   if (!emailRegex.test(email)) {
-    throw new ValidationError("Invalid email address", [
+    return sendErrorResponse(res, 400, "Invalid email address", [
       { field: "email", message: "Please provide a valid email address" },
     ]);
   }
 
   // Role validation
   if (!["client", "developer"].includes(role)) {
-    throw new ValidationError("Invalid role", [
+    return sendErrorResponse(res, 400, "Invalid role", [
       { field: "role", message: "Role must be either 'client' or 'developer'" },
     ]);
   }
 
   // Bio length validation
   if (req.body.bio && req.body.bio.length > 500) {
-    throw new ValidationError("Bio too long", [
+    return sendErrorResponse(res, 400, "Bio too long", [
       { field: "bio", message: "Bio must not exceed 500 characters" },
     ]);
   }
 
   // Skills validation
   if (req.body.skills && !Array.isArray(req.body.skills)) {
-    throw new ValidationError("Invalid skills format", [
+    return sendErrorResponse(res, 400, "Invalid skills format", [
       { field: "skills", message: "Skills must be an array" },
     ]);
   }
@@ -138,21 +138,21 @@ const validateUserUpdate = (req, res, next) => {
 
   // Bio length validation
   if (bio && bio.length > 500) {
-    throw new ValidationError("Bio too long", [
+    return sendErrorResponse(res, 400, "Bio too long", [
       { field: "bio", message: "Bio must not exceed 500 characters" },
     ]);
   }
 
   // Skills validation
   if (skills && !Array.isArray(skills)) {
-    throw new ValidationError("Invalid skills format", [
+    return sendErrorResponse(res, 400, "Invalid skills format", [
       { field: "skills", message: "Skills must be an array" },
     ]);
   }
 
   // isActive validation
   if (isActive !== undefined && typeof isActive !== "boolean") {
-    throw new ValidationError("Invalid isActive value", [
+    return sendErrorResponse(res, 400, "Invalid isActive value", [
       { field: "isActive", message: "isActive must be a boolean" },
     ]);
   }
@@ -176,7 +176,7 @@ const validateAgreementCreation = (req, res, next) => {
   if (!description) errors.push({ field: "description", message: "Description is required" });
 
   if (errors.length > 0) {
-    throw new ValidationError("Validation failed", errors);
+    return sendErrorResponse(res, 400, "Validation failed", errors);
   }
 
   // Title length validation
@@ -190,7 +190,7 @@ const validateAgreementCreation = (req, res, next) => {
   }
 
   if (errors.length > 0) {
-    throw new ValidationError("Validation failed", errors);
+    return sendErrorResponse(res, 400, "Validation failed", errors);
   }
 
   next();
@@ -219,7 +219,7 @@ const validateAgreementUpdate = (req, res, next) => {
   }
 
   if (errors.length > 0) {
-    throw new ValidationError("Validation failed", errors);
+    return sendErrorResponse(res, 400, "Validation failed", errors);
   }
 
   next();
@@ -232,14 +232,14 @@ const validateStatusUpdate = (req, res, next) => {
   const { status } = req.body;
 
   if (!status) {
-    throw new ValidationError("Validation failed", [
+    return sendErrorResponse(res, 400, "Validation failed", [
       { field: "status", message: "Status is required" },
     ]);
   }
 
   const validStatuses = ["pending", "rejected", "cancelled", "active", "in-progress", "completed","paid","priced"];
   if (!validStatuses.includes(status)) {
-    throw new ValidationError("Validation failed", [
+    return sendErrorResponse(res, 400, "Validation failed", [
       {
         field: "status",
         message: `Status must be one of: ${validStatuses.join(", ")}`,
@@ -257,13 +257,13 @@ const validateMilestoneCreation = (req, res, next) => {
   const { name } = req.body;
 
   if (!name) {
-    throw new ValidationError("Validation failed", [
+    return sendErrorResponse(res, 400, "Validation failed", [
       { field: "name", message: "Milestone name is required" },
     ]);
   }
 
   if (name && name.length > 200) {
-    throw new ValidationError("Validation failed", [
+    return sendErrorResponse(res, 400, "Validation failed", [
       { field: "name", message: "Milestone name must not exceed 200 characters" },
     ]);
   }
@@ -278,14 +278,14 @@ const validateMilestoneUpdate = (req, res, next) => {
   const { status } = req.body;
 
   if (!status) {
-    throw new ValidationError("Validation failed", [
+    return sendErrorResponse(res, 400, "Validation failed", [
       { field: "status", message: "Status is required" },
     ]);
   }
 
   const validStatuses = ["pending", "inProgress", "completed"];
   if (!validStatuses.includes(status)) {
-    throw new ValidationError("Validation failed", [
+    return sendErrorResponse(res, 400, "Validation failed", [
       {
         field: "status",
         message: `Status must be one of: ${validStatuses.join(", ")}`,
@@ -309,7 +309,7 @@ const validateRequestChangeCreation = (req, res, next) => {
   if (!description) errors.push({ field: "description", message: "Description is required" });
 
   if (errors.length > 0) {
-    throw new ValidationError("Validation failed", errors);
+    return sendErrorResponse(res, 400, "Validation failed", errors);
   }
 
   // Title length validation
@@ -323,7 +323,7 @@ const validateRequestChangeCreation = (req, res, next) => {
   }
 
   if (errors.length > 0) {
-    throw new ValidationError("Validation failed", errors);
+    return sendErrorResponse(res, 400, "Validation failed", errors);
   }
 
   next();
@@ -346,7 +346,7 @@ const validateRequestChangePrice = (req, res, next) => {
   }
 
   if (errors.length > 0) {
-    throw new ValidationError("Validation failed", errors);
+    return sendErrorResponse(res, 400, "Validation failed", errors);
   }
 
   next();
@@ -564,3 +564,4 @@ module.exports = {
   transactionIdValidation,
   agreementIdValidation,
 };
+
