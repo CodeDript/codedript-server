@@ -82,7 +82,7 @@ class PinataService {
       
       // Build gateway URL
       const config = getConfig();
-      const gateway = config.pinata.gateway.replace(/^https?:\/\//i, '');
+      const gateway = "ipfs.io";
       const dedicatedUrl = `https://${gateway}/ipfs/${result.IpfsHash}`;
       
       return {

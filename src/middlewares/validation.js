@@ -164,16 +164,16 @@ const validateUserUpdate = (req, res, next) => {
  * Validate agreement creation data
  */
 const validateAgreementCreation = (req, res, next) => {
-  const { developer, gig, title, description, totalValue } = req.body;
+  const { developer, gig, packageId, title, description } = req.body;
 
   const errors = [];
 
   // Required fields validation
   if (!developer) errors.push({ field: "developer", message: "Developer is required" });
   if (!gig) errors.push({ field: "gig", message: "Gig is required" });
+  if (!packageId) errors.push({ field: "packageId", message: "Package ID is required" });
   if (!title) errors.push({ field: "title", message: "Title is required" });
   if (!description) errors.push({ field: "description", message: "Description is required" });
-  if (!totalValue) errors.push({ field: "totalValue", message: "Total value is required" });
 
   if (errors.length > 0) {
     throw new ValidationError("Validation failed", errors);
@@ -187,11 +187,6 @@ const validateAgreementCreation = (req, res, next) => {
   // Description length validation
   if (description && description.length > 5000) {
     errors.push({ field: "description", message: "Description must not exceed 5000 characters" });
-  }
-
-  // Total value validation
-  if (totalValue && (isNaN(totalValue) || parseFloat(totalValue) < 0)) {
-    errors.push({ field: "totalValue", message: "Total value must be a positive number" });
   }
 
   if (errors.length > 0) {

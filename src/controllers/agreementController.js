@@ -24,16 +24,16 @@ const createAgreement = async (req, res, next) => {
     const {
       developer,
       gig,
+      packageId,
       title,
       description,
-      totalValue,
       milestones,
     } = req.body;
 
     // Validate required fields
-    if (!developer || !gig || !title || !description || !totalValue) {
+    if (!developer || !gig || !packageId || !title || !description) {
       throw new ValidationError(
-        "Please provide developer, gig, title, description, and total value"
+        "Please provide developer, gig, packageId, title, and description"
       );
     }
 
@@ -54,6 +54,14 @@ const createAgreement = async (req, res, next) => {
     if (gigDoc.developer.toString() !== developer) {
       throw new ValidationError("Gig does not belong to the selected developer");
     }
+
+    // Find the selected package by ID and get its price
+    const selectedPackage = gigDoc.packages.id(packageId);
+    if (!selectedPackage) {
+      throw new NotFoundError("Package not found in the selected gig");
+    }
+
+    const totalValue = selectedPackage.price;
 
     // Get client info from authenticated user
     const clientUser = await User.findById(req.user.userId);

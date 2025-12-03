@@ -5,33 +5,7 @@ const { ValidationError } = require("../utils/errorHandler");
 /**
  * Network configurations for different blockchain networks
  */
-const NETWORK_CONFIGS = {
-  mainnet: {
-    name: "Ethereum Mainnet",
-    chainId: 1,
-    rpcUrl: process.env.MAINNET_RPC_URL || "https://eth.llamarpc.com",
-  },
-  sepolia: {
-    name: "Sepolia Testnet",
-    chainId: 11155111,
-    rpcUrl: process.env.SEPOLIA_RPC_URL || "https://rpc.sepolia.org",
-  },
-  goerli: {
-    name: "Goerli Testnet",
-    chainId: 5,
-    rpcUrl: process.env.GOERLI_RPC_URL || "https://rpc.ankr.com/eth_goerli",
-  },
-  polygon: {
-    name: "Polygon Mainnet",
-    chainId: 137,
-    rpcUrl: process.env.POLYGON_RPC_URL || "https://polygon-rpc.com",
-  },
-  mumbai: {
-    name: "Mumbai Testnet",
-    chainId: 80001,
-    rpcUrl: process.env.MUMBAI_RPC_URL || "https://rpc-mumbai.maticvigil.com",
-  },
-};
+const { NETWORK_CONFIGS } = require("../config/constants");
 
 /**
  * Get provider for a specific network
