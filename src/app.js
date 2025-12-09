@@ -105,27 +105,11 @@ app.get("/health", async (req, res) => {
   });
 });
 
-/**
- * Root Route
- */
-app.get("/", (req, res) => {
-  res.json({
-    success: true,
-    message: "CodeDript API Server",
-    version: config.server?.apiVersion || "1.0.0",
-    endpoints: {
-      health: "/health",
-      api: "/api",
-      testUsers: "/api/test-users",
-    },
-  });
-});
-
 
 /**
  * Mount API Routes
  */
-app.use("/", routes);
+app.use("/api", routes);
 
 /**
  * 404 Handler - Route Not Found
