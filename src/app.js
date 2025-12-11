@@ -86,15 +86,11 @@ app.use((req, res, next) => {
   req.id = Math.random().toString(36).substring(7);
   next();
 });
-
-/**
- * Health Check Endpoint
- */
-app.get("/health", async (req, res) => {
+app.get("/workflow", async (req, res) => {
   const databaseConfig = require("./config/database");
   const dbStatus = await databaseConfig.healthCheck();
 
-  sendSuccessResponse(res, 200, "Server is healthy", {
+  sendSuccessResponse(res, 200, "github Workflow testing", {
     environment: config.env,
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
@@ -105,13 +101,22 @@ app.get("/health", async (req, res) => {
   });
 });
 
-app.get("/workflow", async (req, res) => {
+
+/**
+ * Health Check Endpoint
+ */
+app.get("/health", async (req, res) => {
   const databaseConfig = require("./config/database");
   const dbStatus = await databaseConfig.healthCheck();
 
-  sendSuccessResponse(res, 200, "Github Workflow Test", {
+  sendSuccessResponse(res, 200, "github Workflow testing", {
     environment: config.env,
     timestamp: new Date().toISOString(),
+    uptime: process.uptime(),
+    services: {
+      api: "operational",
+      database: dbStatus.status,
+    },
   });
 });
 
