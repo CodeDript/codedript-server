@@ -129,7 +129,7 @@ const getAllGigs = async (req, res, next) => {
 
     // Execute query
     const gigs = await Gig.find(filter)
-      .populate("developer", "username email walletAddress role")
+      .populate("developer", "username fullname email walletAddress role avatar skills bio")
       .sort(sort)
       .skip(skip)
       .limit(limitNum);
@@ -184,14 +184,14 @@ const getGigById = async (req, res, next) => {
     // Try to find by MongoDB _id first, then by gigID
     let gig = await Gig.findById(id).populate(
       "developer",
-      "username email walletAddress role"
+      "username fullname email walletAddress role avatar skills bio"
     );
 
     if (!gig) {
       // Try finding by gigID
       gig = await Gig.findOne({ gigID: id }).populate(
         "developer",
-        "username email walletAddress role"
+        "username fullname email walletAddress role avatar skills bio"
       );
     }
 
