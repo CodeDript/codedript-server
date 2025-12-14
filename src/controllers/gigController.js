@@ -148,14 +148,24 @@ const getAllGigs = async (req, res, next) => {
     // Get total count for pagination
     const total = await Gig.countDocuments(filter);
 
+    const pagination = {
+      page: parseInt(page),
+      limit: limitNum,
+      total,
+      pages: Math.ceil(total / limitNum),
+    };
+
+    // If there are no gigs, return a friendly message with empty list
+    if (total === 0) {
+      return sendSuccessResponse(res, 200, "No gigs available", {
+        gigs: [],
+        pagination,
+      });
+    }
+
     sendSuccessResponse(res, 200, "Gigs retrieved successfully", {
       gigs: filteredGigs,
-      pagination: {
-        page: parseInt(page),
-        limit: limitNum,
-        total,
-        pages: Math.ceil(total / limitNum),
-      },
+      pagination,
     });
   } catch (error) {
     next(error);
