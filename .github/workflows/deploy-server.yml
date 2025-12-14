@@ -54,7 +54,7 @@ jobs:
           key: ${{ secrets.EC2_SSH_KEY }}
           port: 22
           script: |
-            cd ~/codedript-infra || exit 1
+            cd ~/src/codedript-infra || exit 1
             docker compose pull server
             docker compose up -d server
             docker compose restart nginx
