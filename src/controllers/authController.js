@@ -250,7 +250,7 @@ const getCurrentUser = async (req, res, next) => {
  */
 const updateUser = async (req, res, next) => {
   try {
-    const { fullname, bio, skills, role,walletAddress } = req.body;
+    const { fullname, bio, skills, role, email } = req.body;
 
     // Find user
     const user = await User.findById(req.user.userId);
@@ -325,21 +325,26 @@ const updateUser = async (req, res, next) => {
       }
       user.role = role;
     }
-    if (walletAddress !== undefined) {
-      // Normalize and validate wallet address
-      const normalizedWallet = walletAddress.toLowerCase().trim();
-      
-      // Check if wallet address is already in use by another user
-      const existingUser = await User.findOne({ 
-        walletAddress: normalizedWallet,
-        _id: { $ne: user._id }
-      });
-      
-      if (existingUser) {
-        return sendErrorResponse(res, 400, "Wallet address is already in use");
+    if (email !== undefined) {
+      // Validate and normalize email
+      const emailRegex = /^\S+@\S+\.\S+$/;
+      const normalizedEmail = String(email).toLowerCase().trim();
+
+      if (!emailRegex.test(normalizedEmail)) {
+        return sendErrorResponse(res, 400, "Invalid email format");
       }
-      
-      user.walletAddress = normalizedWallet;
+
+      // Check if email is already in use by another user
+      const existingUserByEmail = await User.findOne({
+        email: normalizedEmail,
+        _id: { $ne: user._id },
+      });
+
+      if (existingUserByEmail) {
+        return sendErrorResponse(res, 400, "Email is already in use");
+      }
+
+      user.email = normalizedEmail;
     }
     if (avatarUrl !== user.avatar) {
       user.avatar = avatarUrl;

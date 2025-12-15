@@ -7,6 +7,20 @@ const logger = require("./logger");
 const { sendErrorResponse } = require("./responseHandler");
 
 /**
+ * ValidationError class
+ * Used to represent client-side validation errors with a 400 status code
+ */
+class ValidationError extends Error {
+  constructor(message, errors = null, statusCode = 400) {
+    super(message);
+    this.name = 'ValidationError';
+    this.statusCode = statusCode;
+    if (errors) this.errors = errors;
+    Error.captureStackTrace(this, this.constructor);
+  }
+}
+
+/**
  * Async Error Handler Wrapper
  * Wraps async route handlers to catch errors and pass to error middleware
  */
@@ -77,4 +91,5 @@ module.exports = {
   handleUnhandledRejection,
   notFound,
   errorHandler,
+  ValidationError,
 };

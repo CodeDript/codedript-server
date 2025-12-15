@@ -120,7 +120,8 @@ const handleUploadError = (err, req, res, next) => {
       );
     }
     if (err.code === "LIMIT_UNEXPECTED_FILE") {
-      return next(new ValidationError("Unexpected field in upload."));
+      // Multer uses LIMIT_UNEXPECTED_FILE for too many files or unexpected field names
+      return next(new ValidationError("Too many files uploaded or unexpected field in upload."));
     }
     if (err.code === "LIMIT_FILE_COUNT") {
       return next(new ValidationError("Too many files uploaded."));
