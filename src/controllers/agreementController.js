@@ -359,14 +359,27 @@ const updateAgreementStatus = async (req, res, next) => {
 
     // Status transition rules
     if (status === "active") {
-      // Only developer can accept (pending -> active)
-      if (agreement.developer.toString() !== userId) {
-        return sendErrorResponse(res, 403, 
-          "Only the developer can accept the agreement"
+      // Two paths to active:
+      // 1. Developer accepts pending agreement (pending -> active)
+      // 2. Client pays for priced agreement (priced -> active)
+      if (agreement.status === "pending") {
+        // Developer accepts
+        if (agreement.developer.toString() !== userId) {
+          return sendErrorResponse(res, 403, 
+            "Only the developer can accept a pending agreement"
+          );
+        }
+      } else if (agreement.status === "priced") {
+        // Client pays
+        if (agreement.client.toString() !== userId) {
+          return sendErrorResponse(res, 403,
+            "Only the client can activate a priced agreement by paying"
+          );
+        }
+      } else {
+        return sendErrorResponse(res, 400, 
+          "Only pending or priced agreements can be set to active"
         );
-      }
-      if (agreement.status !== "pending") {
-        return sendErrorResponse(res, 400, "Only pending agreements can be accepted");
       }
       agreement.startDate = new Date();
     } else if (status === "rejected") {

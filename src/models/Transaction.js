@@ -85,18 +85,29 @@ transactionSchema.index({ transactionHash: 1 });
 transactionSchema.pre("save", async function (next) {
   if (!this.transactionID) {
     try {
+      // Find the last transaction by sorting by createdAt descending
       const lastTransaction = await this.constructor.findOne(
-        {},
-        {},
-        { sort: { transactionID: -1 } }
-      );
+        { transactionID: { $ne: null, $exists: true } },
+        { transactionID: 1 }
+      ).sort({ createdAt: -1 }).limit(1);
+      
       if (lastTransaction && lastTransaction.transactionID) {
-        const lastNumber = parseInt(lastTransaction.transactionID);
-        this.transactionID = String(lastNumber + 1).padStart(3, '0');
+        const lastNumber = parseInt(lastTransaction.transactionID, 10);
+        if (!isNaN(lastNumber)) {
+          this.transactionID = String(lastNumber + 1).padStart(3, '0');
+        } else {
+          // If parsing fails, count documents and use that
+          const count = await this.constructor.countDocuments();
+          this.transactionID = String(count + 1).padStart(3, '0');
+        }
       } else {
+        // First transaction
         this.transactionID = "001";
       }
     } catch (error) {
+      console.error('Error generating transactionID:', error);
+      // Fallback: use timestamp-based ID
+      this.transactionID = Date.now().toString();
       return next(error);
     }
   }
