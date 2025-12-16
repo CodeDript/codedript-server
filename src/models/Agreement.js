@@ -26,6 +26,11 @@ const agreementSchema = new mongoose.Schema(
       required: true,
       index: true,
     },
+    packageId: {
+      type: String,
+      required: true,
+      trim: true,
+    },
     title: {
       type: String,
       required: true,
@@ -115,7 +120,6 @@ const agreementSchema = new mongoose.Schema(
       {
         name: {
           type: String,
-          required: true,
           trim: true,
         },
         description: {

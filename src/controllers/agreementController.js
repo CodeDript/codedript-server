@@ -23,8 +23,20 @@ const createAgreement = async (req, res, next) => {
       milestones,
     } = req.body;
 
+    // Debug logging
+    logger.info('📥 Received agreement creation request');
+    logger.info('Request body:', { developer, gig, packageId, title, description, milestones });
+    logger.info('Files received:', req.files?.length || 0);
+
     // Validate required fields
     if (!developer || !gig || !packageId || !title || !description) {
+      logger.error('❌ Missing required fields:', { 
+        hasDeveloper: !!developer, 
+        hasGig: !!gig, 
+        hasPackageId: !!packageId, 
+        hasTitle: !!title, 
+        hasDescription: !!description 
+      });
       return sendErrorResponse(res, 400, 
         "Please provide developer, gig, packageId, title, and description"
       );
@@ -108,6 +120,7 @@ const createAgreement = async (req, res, next) => {
       },
       developer,
       gig,
+      packageId,
       title,
       description,
       status: "pending",
