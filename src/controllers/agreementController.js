@@ -211,7 +211,7 @@ const getAgreementById = async (req, res, next) => {
 const updateAgreement = async (req, res, next) => {
   try {
     const { id } = req.params;
-    const { title, description, totalValue } = req.body;
+    const { title, description, totalValue, endDate, milestones } = req.body;
 
     const agreement = await Agreement.findById(id);
 
@@ -225,25 +225,54 @@ const updateAgreement = async (req, res, next) => {
       agreement.client.toString() !== userId &&
       agreement.developer.toString() !== userId
     ) {
-      return sendErrorResponse(res, 403, 
+      return sendErrorResponse(res, 403,
         "You do not have permission to update this agreement"
-      );
-    }
-
-    // Only allow updates if agreement is in pending status
-    if (agreement.status !== "pending") {
-      return sendErrorResponse(res, 400, 
-        "Only pending agreements can be updated. Use specific endpoints for other changes."
       );
     }
 
     // Update fields
     if (title) agreement.title = title;
     if (description) agreement.description = description;
-    if (totalValue) {
-      agreement.financials.totalValue = parseFloat(totalValue);
-      agreement.financials.remainingAmount =
-        parseFloat(totalValue) - agreement.financials.releasedAmount;
+
+    if (totalValue !== undefined && totalValue !== null) {
+      const parsed = parseFloat(totalValue);
+      if (!isNaN(parsed)) {
+        agreement.financials.totalValue = parsed;
+        agreement.financials.remainingAmount = parsed - (agreement.financials.releasedAmount || 0);
+      }
+    }
+
+    if (endDate) {
+      const d = new Date(endDate);
+      if (!isNaN(d.getTime())) {
+        agreement.endDate = d;
+      }
+    }
+
+    if (milestones) {
+      let parsedMilestones = milestones;
+      if (typeof milestones === 'string') {
+        try {
+          parsedMilestones = JSON.parse(milestones);
+        } catch (e) {
+          return sendErrorResponse(res, 400, "Invalid milestones format");
+        }
+      }
+      if (Array.isArray(parsedMilestones)) {
+        // Normalize milestones: if items have title/amount, convert to name/description
+        const normalized = parsedMilestones.map((m) => {
+          if (typeof m === 'string') return { name: m };
+          if (m.name || m.title) {
+            return {
+              name: m.name || m.title,
+              description: m.description || m.note || '',
+              status: m.status || 'pending'
+            };
+          }
+          return m;
+        });
+        agreement.milestones = normalized;
+      }
     }
 
     await agreement.save();
@@ -349,6 +378,25 @@ const updateAgreementStatus = async (req, res, next) => {
       }
       if (agreement.status !== "pending") {
         return sendErrorResponse(res, 400, "Only pending agreements can be rejected");
+      }
+    } else if (status === "priced") {
+      // Developer proposes a price for a pending agreement
+      if (agreement.developer.toString() !== userId) {
+        return sendErrorResponse(res, 403,
+          "Only the developer can propose a price for the agreement"
+        );
+      }
+      if (agreement.status !== "pending") {
+        return sendErrorResponse(res, 400, "Only pending agreements can be priced");
+      }
+
+      // Optionally accept a new totalValue in the request body to update financials
+      const { totalValue } = req.body;
+      if (totalValue !== undefined && totalValue !== null && !isNaN(Number(totalValue))) {
+        const newTotal = parseFloat(totalValue);
+        agreement.financials.totalValue = newTotal;
+        // remainingAmount should account for any already released amount
+        agreement.financials.remainingAmount = newTotal - (agreement.financials.releasedAmount || 0);
       }
     } else if (status === "cancelled") {
       // Both parties can cancel before in-progress

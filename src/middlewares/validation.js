@@ -200,7 +200,7 @@ const validateAgreementCreation = (req, res, next) => {
  * Validate agreement update data
  */
 const validateAgreementUpdate = (req, res, next) => {
-  const { title, description, totalValue } = req.body;
+  const { title, description, totalValue, endDate, milestones } = req.body;
   const errors = [];
 
   // Title length validation
@@ -216,6 +216,29 @@ const validateAgreementUpdate = (req, res, next) => {
   // Total value validation
   if (totalValue && (isNaN(totalValue) || parseFloat(totalValue) < 0)) {
     errors.push({ field: "totalValue", message: "Total value must be a positive number" });
+  }
+
+  // endDate validation (optional, must be a valid date)
+  if (endDate) {
+    const parsed = Date.parse(endDate);
+    if (isNaN(parsed)) {
+      errors.push({ field: "endDate", message: "endDate must be a valid date string" });
+    }
+  }
+
+  // milestones validation (optional, must be an array or JSON array string)
+  if (milestones) {
+    let ms = milestones;
+    if (typeof ms === 'string') {
+      try {
+        ms = JSON.parse(ms);
+      } catch (e) {
+        errors.push({ field: "milestones", message: "Milestones must be a valid JSON array" });
+      }
+    }
+    if (ms && !Array.isArray(ms)) {
+      errors.push({ field: "milestones", message: "Milestones must be an array" });
+    }
   }
 
   if (errors.length > 0) {

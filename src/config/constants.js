@@ -82,6 +82,7 @@ const AGREEMENT_STATUS = {
   PENDING: "pending",
   REJECTED: "rejected",
   CANCELLED: "cancelled",
+  PRICED: "priced",
   ACTIVE: "active",
   IN_PROGRESS: "in-progress",
   COMPLETED: "completed",

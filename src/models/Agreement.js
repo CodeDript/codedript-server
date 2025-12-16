@@ -52,6 +52,7 @@ const agreementSchema = new mongoose.Schema(
         "active",
         "in-progress",
         "completed",
+        "priced",
         "paid"
       ],
       default: "pending",

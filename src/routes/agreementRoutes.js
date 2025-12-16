@@ -73,7 +73,6 @@ router.get("/:id", protect, getAgreementById);
 router.patch(
   "/:id",
   protect,
-  restrictTo("client"),
   validateAgreementUpdate,
   validate,
   updateAgreement
