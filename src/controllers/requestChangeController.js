@@ -173,7 +173,7 @@ const updateRequestChangeStatus = async (req, res, next) => {
       return sendErrorResponse(res, 400, "Status is required");
     }
 
-    const validStatuses = ["pending", "priced","paid"];
+    const validStatuses = ["pending", "priced", "paid", "rejected"];
     if (!validStatuses.includes(status)) {
       return sendErrorResponse(res, 400, 
         `Invalid status. Valid statuses are: ${validStatuses.join(", ")}`
@@ -195,6 +195,22 @@ const updateRequestChangeStatus = async (req, res, next) => {
       return sendErrorResponse(res, 400, 
         "Use the /price endpoint to set the price for this request change"
       );
+    } else if (status === "rejected") {
+      // Both client and developer can reject
+      if (
+        requestChange.agreement.client.toString() !== userId &&
+        requestChange.agreement.developer.toString() !== userId
+      ) {
+        return sendErrorResponse(res, 403, 
+          "Only parties involved can reject the request change"
+        );
+      }
+      // Can reject from pending or priced status
+      if (!["pending", "priced"].includes(requestChange.status)) {
+        return sendErrorResponse(res, 400, 
+          "Only pending or priced request changes can be rejected"
+        );
+      }
     } else if (status === "accepted") {
       // Only client can accept
       if (requestChange.agreement.client.toString() !== userId) {
@@ -272,9 +288,11 @@ const deleteRequestChange = async (req, res, next) => {
       );
     }
 
-    // Only allow deletion if request is pending
-    if (requestChange.status !== "pending") {
-      return sendErrorResponse(res, 400, "Only pending request changes can be deleted");
+    // Only allow deletion if request is pending or rejected
+    if (!["pending", "rejected"].includes(requestChange.status)) {
+      return sendErrorResponse(res, 400, 
+        "Only pending or rejected request changes can be deleted"
+      );
     }
 
     await RequestChange.findByIdAndDelete(id);

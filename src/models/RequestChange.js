@@ -41,7 +41,7 @@ const requestChangeSchema = new mongoose.Schema(
     ],
     status: {
       type: String,
-      enum: ["pending", "priced", "paid"],
+      enum: ["pending", "priced", "paid", "rejected"],
       default: "pending",
       index: true,
     },
