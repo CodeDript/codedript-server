@@ -224,18 +224,15 @@ const updateRequestChangeStatus = async (req, res, next) => {
         );
       }
     } else if (status === "paid") {
-      // Both parties can mark as paid
-      if (
-        requestChange.agreement.client.toString() !== userId &&
-        requestChange.agreement.developer.toString() !== userId
-      ) {
+      // Only client can mark as paid (after blockchain payment)
+      if (requestChange.agreement.client.toString() !== userId) {
         return sendErrorResponse(res, 403, 
-          "Only parties involved can mark request change as paid"
+          "Only the client can mark request change as paid"
         );
       }
-      if (requestChange.status !== "accepted") {
+      if (requestChange.status !== "priced") {
         return sendErrorResponse(res, 400, 
-          "Only accepted request changes can be marked as paid"
+          "Only priced request changes can be marked as paid"
         );
       }
     }

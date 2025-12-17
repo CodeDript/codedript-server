@@ -85,30 +85,60 @@ transactionSchema.index({ transactionHash: 1 });
 transactionSchema.pre("save", async function (next) {
   if (!this.transactionID) {
     try {
-      // Find the last transaction by sorting by createdAt descending
-      const lastTransaction = await this.constructor.findOne(
-        { transactionID: { $ne: null, $exists: true } },
-        { transactionID: 1 }
-      ).sort({ createdAt: -1 }).limit(1);
+      // Retry up to 5 times to handle race conditions
+      let attempts = 0;
+      const maxAttempts = 5;
       
-      if (lastTransaction && lastTransaction.transactionID) {
-        const lastNumber = parseInt(lastTransaction.transactionID, 10);
-        if (!isNaN(lastNumber)) {
-          this.transactionID = String(lastNumber + 1).padStart(3, '0');
-        } else {
-          // If parsing fails, count documents and use that
-          const count = await this.constructor.countDocuments();
-          this.transactionID = String(count + 1).padStart(3, '0');
+      while (attempts < maxAttempts) {
+        try {
+          // Find the highest transactionID by sorting numerically
+          const lastTransaction = await this.constructor.findOne(
+            { transactionID: { $ne: null, $exists: true, $regex: /^\d+$/ } },
+            { transactionID: 1 }
+          ).sort({ transactionID: -1 }).limit(1);
+          
+          let newID;
+          if (lastTransaction && lastTransaction.transactionID) {
+            const lastNumber = parseInt(lastTransaction.transactionID, 10);
+            if (!isNaN(lastNumber)) {
+              newID = String(lastNumber + 1).padStart(3, '0');
+            } else {
+              // Fallback to count
+              const count = await this.constructor.countDocuments();
+              newID = String(count + 1).padStart(3, '0');
+            }
+          } else {
+            // First transaction
+            newID = "001";
+          }
+          
+          // Check if this ID already exists (race condition check)
+          const existing = await this.constructor.findOne({ transactionID: newID });
+          if (!existing) {
+            this.transactionID = newID;
+            break;
+          }
+          
+          // ID collision detected, increment attempt and try again
+          attempts++;
+          if (attempts >= maxAttempts) {
+            // Last resort: use timestamp-based unique ID
+            this.transactionID = `TX${Date.now()}`;
+            console.warn(`TransactionID generation collision, using timestamp-based ID: ${this.transactionID}`);
+          }
+        } catch (innerError) {
+          attempts++;
+          if (attempts >= maxAttempts) {
+            throw innerError;
+          }
+          // Wait a bit before retrying
+          await new Promise(resolve => setTimeout(resolve, 100));
         }
-      } else {
-        // First transaction
-        this.transactionID = "001";
       }
     } catch (error) {
       console.error('Error generating transactionID:', error);
       // Fallback: use timestamp-based ID
-      this.transactionID = Date.now().toString();
-      return next(error);
+      this.transactionID = `TX${Date.now()}`;
     }
   }
   next();
