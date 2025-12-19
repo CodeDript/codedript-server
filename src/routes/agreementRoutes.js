@@ -67,7 +67,6 @@ router.get("/:id", protect, getAgreementById);
 
 /**
  * @route   PUT /agreements/:id
- * @desc    Update agreement (only in pending status)
  * @access  Private (Client or Developer involved)
  */
 router.patch(

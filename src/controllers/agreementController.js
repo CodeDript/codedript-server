@@ -213,6 +213,9 @@ const updateAgreement = async (req, res, next) => {
     const { id } = req.params;
     const { title, description, totalValue, endDate, milestones } = req.body;
 
+    logger.info('📝 Updating agreement:', id);
+    logger.info('Request body:', req.body);
+
     const agreement = await Agreement.findById(id);
 
     if (!agreement) {
@@ -273,6 +276,30 @@ const updateAgreement = async (req, res, next) => {
         });
         agreement.milestones = normalized;
       }
+    }
+
+    // Update blockchain data if provided
+    if (req.body.blockchain) {
+      const { agreementId, transactionHash, contractAddress } = req.body.blockchain;
+      
+      if (!agreement.blockchain) {
+        agreement.blockchain = {};
+      }
+      
+      if (agreementId !== undefined) {
+        agreement.blockchain.agreementId = Number(agreementId);
+      }
+      if (transactionHash) {
+        agreement.blockchain.transactionHash = transactionHash;
+      }
+      if (contractAddress) {
+        agreement.blockchain.contractAddress = contractAddress;
+      }
+      if (agreementId !== undefined || transactionHash) {
+        agreement.blockchain.createdAt = new Date();
+      }
+      
+      logger.info(`Blockchain data updated for agreement ${agreement.agreementID}: blockchain ID ${agreement.blockchain.agreementId}`);
     }
 
     await agreement.save();

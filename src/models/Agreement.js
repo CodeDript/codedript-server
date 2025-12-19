@@ -7,6 +7,24 @@ const agreementSchema = new mongoose.Schema(
       unique: true,
       match: /^\d{3,}$/,
     },
+    blockchain: {
+      agreementId: {
+        type: Number,
+        sparse: true, // Allows null values while maintaining uniqueness for non-null values
+        index: true,
+      },
+      transactionHash: {
+        type: String,
+        trim: true,
+      },
+      contractAddress: {
+        type: String,
+        trim: true,
+      },
+      createdAt: {
+        type: Date,
+      },
+    },
     client: {
       type: mongoose.Schema.Types.ObjectId,
       ref: "User",

@@ -1,5 +1,6 @@
 const Transaction = require("../models/Transaction");
 const Agreement = require("../models/Agreement");
+const RequestChange = require("../models/RequestChange");
 const User = require("../models/User");
 
 const { sendSuccessResponse, sendErrorResponse } = require("../utils/responseHandler");
@@ -77,8 +78,22 @@ const createTransaction = async (req, res, next) => {
       );
     }
 
-    // Get price from the blockchain transaction value
-    const price = parseFloat(blockchainData.value);
+    // Get price from the blockchain transaction value.
+    // Note: for completion transactions where the contract performs internal transfers,
+    // transaction.value may be 0. In that case fall back to agreement financials totalValue.
+    let price = parseFloat(blockchainData.value || 0);
+    // Track modification-specific payment amount when handling request-change transactions
+    let modificationPayment = 0;
+    if (!price || price === 0) {
+      if (agreementDoc.financials && agreementDoc.financials.totalValue) {
+        price = parseFloat(agreementDoc.financials.totalValue);
+        logger.info(
+          `Blockchain transaction value is zero; falling back to agreement totalValue=${price}`
+        );
+      } else {
+        price = 0;
+      }
+    }
 
     // Create transaction record
     const transaction = await Transaction.create({
@@ -101,27 +116,135 @@ const createTransaction = async (req, res, next) => {
       `Transaction created successfully: ID=${transaction.transactionID}, Hash=${transactionHash}`
     );
 
-    // Update user statistics for completion transactions
+    // Post-transaction actions
+    try {
+      // If this is a completion transaction, mark agreement as completed and update financials
+      if (type === "completion") {
+        try {
+          agreementDoc.status = "completed";
+          // Set releasedAmount to totalValue (mark fully released)
+          if (agreementDoc.financials) {
+            const total = agreementDoc.financials.totalValue || price || 0;
+            agreementDoc.financials.releasedAmount = parseFloat(total.toFixed ? total.toFixed(8) : total);
+            agreementDoc.financials.remainingAmount = 0;
+          }
+          await agreementDoc.save();
+          logger.info(`Agreement ${agreementDoc._id} marked as completed after completion transaction`);
+        } catch (err) {
+          logger.error(`Failed to update agreement status after completion transaction: ${err}`);
+        }
+      }
+
+      // If this is a modification (request-change) transaction, try to mark corresponding request change as paid
+      if (type === "modification") {
+        try {
+          // Try to find a request change for this agreement that is priced or pending payment
+          const possibleRequests = await RequestChange.find({ agreement: agreementDoc._id, status: { $in: ["priced", "paid"] } }).sort({ createdAt: -1 }).limit(5);
+          if (possibleRequests && possibleRequests.length > 0) {
+            // Match by price if available
+            let matched = null;
+            for (const req of possibleRequests) {
+              const reqPrice = parseFloat(req.price || 0);
+              if (reqPrice > 0 && Math.abs(reqPrice - price) < 1e-8) {
+                matched = req;
+                break;
+              }
+            }
+
+            // Fallback: take the most recent priced request
+            if (!matched) matched = possibleRequests[0];
+
+            if (matched) {
+              if (matched.status !== "paid") {
+                matched.status = "paid";
+                await matched.save();
+                logger.info(`Marked requestChange ${matched._id} as paid after transaction ${transactionHash}`);
+              }
+              // Ensure agreement financials include this change price (idempotent)
+              const changePrice = parseFloat(matched.price || 0);
+              if (changePrice && agreementDoc.financials) {
+                agreementDoc.financials.totalValue = parseFloat(((agreementDoc.financials.totalValue || 0) + changePrice).toFixed(8));
+                agreementDoc.financials.remainingAmount = parseFloat(((agreementDoc.financials.totalValue || 0) - (agreementDoc.financials.releasedAmount || 0)).toFixed(8));
+                await agreementDoc.save();
+                logger.info(`Added request change price to agreement ${agreementDoc._id} totalValue (${changePrice})`);
+                modificationPayment = changePrice;
+              }
+            }
+          }
+        } catch (err) {
+          logger.error(`Failed to associate modification transaction with a request change: ${err}`);
+        }
+      }
+    } catch (err) {
+      logger.error(`Post-transaction actions failed: ${err}`);
+    }
+
+    // Update user statistics based on transaction type
+    
+    // CREATION: Client pays escrow to activate agreement
+    // - Increment client's totalSpent by the escrow amount
+    if (type === "creation") {
+      const escrowAmount = price;
+      
+      if (escrowAmount && escrowAmount > 0) {
+        await User.findByIdAndUpdate(
+          agreementDoc.client,
+          { $inc: { "statistics.totalSpent": escrowAmount } },
+          { new: true }
+        );
+        
+        logger.info(
+          `Updated statistics for creation - Client ${agreementDoc.client} spent: ${escrowAmount}`
+        );
+      } else {
+        logger.warn(
+          `Creation transaction recorded with zero amount for agreement ${agreementDoc._id}. Skipping statistics update.`
+        );
+      }
+    }
+
+    // MODIFICATION: Client pays for request change
+    // - Increment client's totalSpent by the request change price
+    if (type === "modification") {
+      const changeAmount = modificationPayment || price || 0;
+      
+      if (changeAmount && changeAmount > 0) {
+        await User.findByIdAndUpdate(
+          agreementDoc.client,
+          { $inc: { "statistics.totalSpent": changeAmount } },
+          { new: true }
+        );
+
+        logger.info(
+          `Updated statistics for modification - Client ${agreementDoc.client} spent: ${changeAmount}`
+        );
+      } else {
+        logger.warn(
+          `Modification transaction recorded with zero amount for agreement ${agreementDoc._id}. Skipping statistics update.`
+        );
+      }
+    }
+
+    // COMPLETION: Agreement is completed and funds are released to developer
+    // - Increment developer's totalEarned by the TOTAL agreement value (including all modifications)
     if (type === "completion") {
-      const paymentAmount = parseFloat(blockchainData.value);
-      
-      // Update developer's totalEarned
-      await User.findByIdAndUpdate(
-        agreementDoc.developer,
-        { $inc: { "statistics.totalEarned": paymentAmount } },
-        { new: true }
-      );
-      
-      // Update client's totalSpent
-      await User.findByIdAndUpdate(
-        agreementDoc.client,
-        { $inc: { "statistics.totalSpent": paymentAmount } },
-        { new: true }
-      );
-      
-      logger.info(
-        `Updated statistics - Developer ${agreementDoc.developer} earned: ${paymentAmount}, Client ${agreementDoc.client} spent: ${paymentAmount}`
-      );
+      const totalAgreementValue = agreementDoc.financials?.totalValue || price || 0;
+
+      if (totalAgreementValue && totalAgreementValue > 0) {
+        await User.findByIdAndUpdate(
+          agreementDoc.developer,
+          { $inc: { "statistics.totalEarned": totalAgreementValue } },
+          { new: true }
+        );
+
+        logger.info(
+          `Updated statistics for completion - Developer ${agreementDoc.developer} earned: ${totalAgreementValue} (total agreement value including modifications)`
+        );
+      } else {
+        logger.warn(
+          `Completion transaction recorded with zero amount for agreement ${agreementDoc._id}. Skipping statistics update.`
+        );
+      }
     }
 
     // Populate agreement details

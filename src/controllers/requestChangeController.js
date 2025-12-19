@@ -248,6 +248,34 @@ const updateRequestChangeStatus = async (req, res, next) => {
       `Request change status updated: ${requestChange.requestID} -> ${status}`
     );
 
+    // If request change is marked as paid, update the agreement financials
+    if (status === "paid") {
+      try {
+        const agreementDoc = await Agreement.findById(requestChange.agreement._id);
+        if (!agreementDoc) {
+          logger.warn(`Agreement not found when updating financials for request ${requestChange._id}`);
+        } else {
+          const changePrice = parseFloat(requestChange.price || 0);
+          if (!changePrice || changePrice <= 0) {
+            logger.warn(`Request change ${requestChange._id} marked paid but price is missing or zero`);
+          } else {
+            const currentTotal = (agreementDoc.financials && agreementDoc.financials.totalValue) || 0;
+            const currentReleased = (agreementDoc.financials && agreementDoc.financials.releasedAmount) || 0;
+            const newTotal = parseFloat((currentTotal + changePrice).toFixed(8));
+            const newRemaining = parseFloat((newTotal - currentReleased).toFixed(8));
+
+            agreementDoc.financials.totalValue = newTotal;
+            agreementDoc.financials.remainingAmount = newRemaining;
+            await agreementDoc.save();
+
+            logger.info(`Updated agreement ${agreementDoc._id} financials: totalValue=${newTotal}, remainingAmount=${newRemaining}`);
+          }
+        }
+      } catch (err) {
+        logger.error(`Failed to update agreement financials after request change paid: ${err}`);
+      }
+    }
+
     sendSuccessResponse(
       res,
       200,
