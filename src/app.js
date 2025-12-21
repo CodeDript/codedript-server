@@ -94,7 +94,7 @@ app.get("/health", async (req, res) => {
   const databaseConfig = require("./config/database");
   const dbStatus = await databaseConfig.healthCheck();
 
-  sendSuccessResponse(res, 200, "Server is Healthy", {
+  sendSuccessResponse(res, 200, "Healthy Server", {
     environment: config.env,
     timestamp: new Date().toISOString(),
     uptime: process.uptime(),
