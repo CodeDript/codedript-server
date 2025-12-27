@@ -1,56 +1,91 @@
-# CodeDript Server - Clean Foundation
+# CodeDript Server
 
-This is a clean, minimal foundation for the CodeDript API server with only essential configurations.
+Backend API server for the CodeDript platform. This Node.js/Express application handles user authentication, agreement management, blockchain interactions, and IPFS file storage.
 
-## What's Included
+## Features
 
-- ✅ MongoDB configuration and connection
-- ✅ Supabase configuration and client
-- ✅ Pinata file upload service
-- ✅ Basic Express server setup with security middleware
-- ✅ Environment configuration
+- User authentication with MetaMask wallet integration
+- Agreement and gig management
+- Blockchain transaction handling with ethers.js
+- IPFS file storage via Pinata
+- PostgreSQL database with Supabase
+- RESTful API endpoints
 
-## Structure
+## Project Structure
 
 ```
 src/
-├── config/
-│   ├── database.js       # MongoDB configuration
-│   ├── supabase.js       # Supabase client setup
-│   └── environment.js    # Environment variables
-├── services/
-│   └── pinataService.js  # Pinata IPFS file upload
-├── models/               # Empty - ready for your models
-├── controllers/          # Empty - ready for your controllers
-├── routes/               # Empty - ready for your routes
-├── middlewares/          # Empty - ready for your middleware
-├── utils/                # Empty - ready for your utilities
-└── server.js             # Main server file
+├── config/              # Configuration files
+├── controllers/         # Request handlers
+├── middlewares/         # Express middlewares
+├── models/              # Data models
+├── routes/              # API routes
+├── services/            # External service integrations
+├── utils/               # Helper functions
+├── app.js              # Express app configuration
+└── server.js           # Server entry point
 ```
 
-## Getting Started
+## Installation
 
 1. Install dependencies:
+
    ```bash
    npm install
    ```
 
-2. Configure your `.env` file with:
-   - MongoDB connection string
-   - Supabase credentials
-   - Pinata JWT token
+2. Create `.env` file:
 
-3. Start the server:
+   ```bash
+   cp .env.example .env
+   ```
+
+3. Configure environment variables in `.env`:
+
+   - Database credentials (Supabase)
+   - JWT secret
+   - Pinata API keys
+   - Ethereum RPC URL
+   - Contract addresses
+
+4. Start the server:
    ```bash
    npm run dev
    ```
 
-## Next Steps
+The server will run on `http://localhost:5000`
 
-You can now start building your API from scratch with a clean, organized structure!
+## API Endpoints
 
-- Create models in `src/models/`
-- Create controllers in `src/controllers/`
-- Create routes in `src/routes/`
-- Add middleware in `src/middlewares/`
-- Add utilities in `src/utils/`
+- `POST /api/auth/login` - User authentication
+- `GET /api/gigs` - List all gigs
+- `POST /api/agreements` - Create agreement
+- `GET /api/transactions` - Get transactions
+
+See `docs/` folder for complete API documentation.
+
+## Environment Variables
+
+Required environment variables:
+
+```
+PORT=5000
+SUPABASE_URL=your_supabase_url
+SUPABASE_KEY=your_supabase_key
+JWT_SECRET=your_jwt_secret
+PINATA_JWT=your_pinata_jwt
+ETHEREUM_RPC_URL=your_rpc_url
+CONTRACT_ADDRESS=deployed_contract_address
+```
+
+## Development
+
+```bash
+npm run dev     # Start with nodemon
+npm start       # Production start
+npm test        # Run tests
+```
+
+## License
+
+MIT
