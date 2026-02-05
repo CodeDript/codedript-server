@@ -325,7 +325,7 @@ const updateUser = async (req, res, next) => {
       }
       user.role = role;
     }
-    if (email !== undefined) {
+    if (email !== undefined && email !== null && email !== "") {
       // Validate and normalize email
       const emailRegex = /^\S+@\S+\.\S+$/;
       const normalizedEmail = String(email).toLowerCase().trim();
