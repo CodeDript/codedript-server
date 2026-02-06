@@ -9,7 +9,6 @@ dotenv.config({ path: path.resolve(__dirname, "../../.env") });
  * Configuration object
  */
 const config = {
-  env: process.env.NODE_ENV || "development",
   server: {
     port: parseInt(process.env.PORT, 10) || 5000,
     baseUrl:
@@ -18,11 +17,10 @@ const config = {
   },
   database: {
     uri: process.env.MONGODB_URI,
-    name: process.env.DB_NAME || "codedript",
   },
   cors: {
     origin: (
-      process.env.CORS_ORIGINS || "http://localhost:3000,http://localhost:5173"
+      process.env.CORS_ORIGINS
     )
       .split(",")
       .map((s) => s.trim()),
@@ -140,10 +138,6 @@ async function checkSupabaseConnection(timeout = 5000) {
  */
 function getConfig() {
   return {
-    env: config.env,
-    isDevelopment: config.env === "development",
-    isProduction: config.env === "production",
-    isTest: config.env === "test",
     server: config.server,
     database: config.database,
     cors: config.cors,
@@ -159,8 +153,7 @@ function getConfig() {
  */
 async function printStartupMinimal(opts = {}) {
   const c = getConfig();
-  const base =
-    opts.url || c.server.baseUrl || `http://localhost:${c.server.port}`;
+  const base = opts.url || c.server.baseUrl || `http://localhost:${c.server.port}`;
 
   logger.info("[Server]");
   logger.info(`  • Port: ${c.server.port}`);

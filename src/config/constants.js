@@ -163,7 +163,7 @@ const RATE_LIMIT = {
 
 // JWT Configuration
 const JWT_CONFIG = {
-  SECRET: process.env.JWT_SECRET || "your-secret-key-change-in-production",
+  SECRET: process.env.JWT_SECRET,
   EXPIRES_IN: "7d",
   REFRESH_EXPIRES_IN: "30d",
 };
@@ -178,10 +178,7 @@ const DB_CONFIG = {
 
 // CORS Configuration
 const CORS_CONFIG = {
-  ALLOWED_ORIGINS: process.env.CORS_ORIGINS?.split(",") || [
-    "http://localhost:3000",
-    "http://localhost:5173",
-  ],
+  ALLOWED_ORIGINS: process.env.CORS_ORIGINS?.split(","),
   CREDENTIALS: true,
   OPTIONS_SUCCESS_STATUS: 200,
 };

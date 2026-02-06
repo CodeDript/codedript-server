@@ -32,11 +32,7 @@ const startServer = async () => {
           const url = config.server?.baseUrl || `http://localhost:${PORT}`;
           await environmentConfig.printStartupMinimal({ url });
         } catch (e) {
-          logger.info(
-            `✓ Server running on port ${PORT} in ${
-              config.env || process.env.NODE_ENV || "development"
-            } mode`
-          );
+          logger.info(`✓ Server running on port ${PORT}`);
           logger.info(`✓ API available at http://localhost:${PORT}/api`);
         }
       })();

@@ -78,9 +78,7 @@ const errorHandler = (err, req, res, next) => {
   });
 
   // Send error response using standardized format
-  const errorDetails = process.env.NODE_ENV === "development" 
-    ? { stack: err.stack, ...err }
-    : err.errors || null;
+  const errorDetails = err.errors || null;
 
   return sendErrorResponse(res, statusCode, message, errorDetails);
 };

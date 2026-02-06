@@ -52,7 +52,7 @@ class DatabaseConfig {
       retryReads: true,
       compressors: ['zlib'],
       zlibCompressionLevel: 6,
-      autoIndex: process.env.NODE_ENV === 'development',
+      autoIndex: false,
       heartbeatFrequencyMS: 10000
     };
 
